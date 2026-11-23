@@ -45,12 +45,10 @@ export function timeIn(now: number, offset: number): string {
   return `${two(t.getUTCHours())}:${two(t.getUTCMinutes())}`
 }
 
-// The year plus how far through it we are: 2026.898 and so on.
+// Today's date in UTC as YYYY.MM.DD.
 export function stardate(now: number): string {
-  const year = new Date(now).getUTCFullYear()
-  const start = Date.UTC(year, 0, 1)
-  const end = Date.UTC(year + 1, 0, 1)
-  return (year + (now - start) / (end - start)).toFixed(3)
+  const t = new Date(now)
+  return `${t.getUTCFullYear()}.${two(t.getUTCMonth() + 1)}.${two(t.getUTCDate())}`
 }
 
 // The SVG for the block under the STARDATE heading, right-aligned to the
@@ -67,9 +65,13 @@ export function clocksSvg(now: number): string {
 
 // The scene at a given moment: clocks filled in, and every animation told the
 // time so a redraw carries on where the last one was instead of restarting.
-export function sceneAt(scene: string, now: number): string {
+// `onCall` is the SVG for the ON CALL block, drawn by pagerduty.ts.
+export function sceneAt(scene: string, now: number, onCall = ''): string {
   // Seconds since the epoch, wrapped every 10 days: a whole number of minutes,
   // so the minute dial stays on the real second hand.
   const seconds = ((now / 1000) % 864_000).toFixed(2)
-  return scene.replace('--t: 0;', `--t: ${seconds};`).replace('<!-- clocks -->', clocksSvg(now))
+  return scene
+    .replace('--t: 0;', `--t: ${seconds};`)
+    .replace('<!-- clocks -->', clocksSvg(now))
+    .replace('<!-- oncall -->', onCall)
 }

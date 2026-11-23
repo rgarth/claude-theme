@@ -1,7 +1,40 @@
 {
   "name": "bridge-theme",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "Starship bridge console theme: pitch black, flat pastel elbows and rails, drifting star-field",
-  "author": { "name": "Rob Garth" },
-  "license": "MIT"
+  "author": {
+    "name": "Rob Garth"
+  },
+  "license": "MIT",
+  "userConfig": {
+    "pagerdutyServer": {
+      "type": "string",
+      "title": "PagerDuty MCP server",
+      "description": "The name of your PagerDuty MCP server, as `claude mcp list` shows it.",
+      "default": "pagerduty"
+    },
+    "primarySchedule": {
+      "type": "string",
+      "title": "Primary on-call schedule ID",
+      "description": "PagerDuty schedule ID for the primary on-call (for example P1ABCDE). Leave empty to hide the ON CALL block.",
+      "default": ""
+    },
+    "secondarySchedule": {
+      "type": "string",
+      "title": "Secondary on-call schedule ID",
+      "description": "PagerDuty schedule ID for the secondary on-call.",
+      "default": ""
+    },
+    "incidentScope": {
+      "type": "string",
+      "title": "Escalations to show",
+      "description": "Open high-urgency incidents for your teams, everyone, or only those assigned to you.",
+      "default": "teams",
+      "options": [
+        "teams",
+        "all",
+        "assigned"
+      ]
+    }
+  }
 }

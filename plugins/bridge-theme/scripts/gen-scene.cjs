@@ -108,9 +108,8 @@ function railRight(y, h, items) { // flush to the right edge, pill cap on the ou
 const tx = X + V + 18, ty = Y + A + r + 16
 // Right column, top to bottom, with roomy gaps between each part.
 const CLOCK_LABEL = 150 // STARDATE heading; the mod fills in the clocks below it
-const SENSOR_LABEL = CLOCK_LABEL + 176, DIAL = SENSOR_LABEL + 82, TELE_LABEL = DIAL + 48 + 64
-const TELE_TOP = TELE_LABEL + 16, TELE_H = 140, CHART_BASE = TELE_TOP + TELE_H + 50 + 124
-const tR = telemetry(-190, TELE_TOP + 20, 22, [80, 94], 21)
+const ONCALL_LABEL = CLOCK_LABEL + 186 // ON CALL heading; the mod fills in on-call and escalations below it
+const SENSOR_LABEL = ONCALL_LABEL + 232, DIAL = SENSOR_LABEL + 82, CHART_BASE = DIAL + 48 + 44 + 124
 const FRAME_END = 75 // percent of the window's height where the left frame stops
 const midTop = top.end, midBottom = bot.end // px from top, px from bottom
 
@@ -121,11 +120,13 @@ svg { --t: 0; }
 .s2 { fill: #ffe9d6; opacity: 0.7; animation: drift 700s linear calc(0s - var(--t) * 1s) infinite; }
 @keyframes drift { from { transform: translateX(0px); } to { transform: translateX(-1600px); } }
 text { font-family: 'Swiss 911 Ultra Compressed BT', 'Swiss911 UCm BT', 'Swiss 911 Ultra Compressed', 'DIN Condensed', 'Arial Narrow', sans-serif; font-stretch: condensed; font-size: 11px; letter-spacing: 1px; }
-.tele { opacity: 0.8; }
-.tele text { font-size: 18px; letter-spacing: 0.5px; }
 .city { fill: ${C.l}; font-size: 16px; letter-spacing: 1px; }
 .time { fill: #ffffff; font-size: 22px; letter-spacing: 0.5px; text-anchor: end; }
 .date { fill: ${C.pe}; font-size: 26px; letter-spacing: 1px; text-anchor: end; }
+.who { fill: #ffffff; font-size: 20px; letter-spacing: 0.5px; text-anchor: end; }
+.until { fill: ${C.pw}; font-size: 13px; letter-spacing: 1px; text-anchor: end; }
+.esc { font-size: 15px; letter-spacing: 0.5px; }
+.esc-new { fill: ${C.co}; } .esc-ack { fill: ${C.pe}; } .clear { fill: ${C.pw}; font-size: 16px; letter-spacing: 1px; text-anchor: end; }
 .bracket { fill: none; stroke: ${C.pw}; stroke-width: 1; }
 @keyframes wave1 { 0%, 100% { transform: scaleY(0.75); } 30% { transform: scaleY(0.35); } 55% { transform: scaleY(0.9); } 80% { transform: scaleY(0.5); } }
 @keyframes wave2 { 0%, 100% { transform: scaleY(0.4); } 25% { transform: scaleY(0.85); } 60% { transform: scaleY(0.6); } 85% { transform: scaleY(1); } }
@@ -133,8 +134,6 @@ text { font-family: 'Swiss 911 Ultra Compressed BT', 'Swiss911 UCm BT', 'Swiss 9
 .lbl { fill: #000000; font-size: 18px; letter-spacing: 1px; text-anchor: end; }
 .head { fill: ${C.o}; font-size: 30px; letter-spacing: 2px; }
 .sub { fill: ${C.o}; font-size: 17px; letter-spacing: 1.5px; }
-.scrollR { animation: upR 80s linear calc(0s - var(--t) * 1s) infinite; }
-@keyframes upR { from { transform: translateY(0px); } to { transform: translateY(-${tR.span}px); } }
 .blink1 { animation: blink 5s steps(1) calc(0s - var(--t) * 1s) infinite; }
 .blink2 { animation: blink 8s steps(1) calc(-3s - var(--t) * 1s) infinite; }
 @keyframes blink { 0%, 60% { opacity: 1; } 61%, 100% { opacity: 0.35; } }
@@ -150,7 +149,7 @@ text { font-family: 'Swiss 911 Ultra Compressed BT', 'Swiss911 UCm BT', 'Swiss 9
 /* the cut and its word sit halfway along the middle block */
 .midcut { x: ${X}px; y: calc(${FRAME_END / 2}% + ${(midTop - midBottom - G) / 2}px); width: ${V}px; height: ${G}px; }
 </style>
-<defs><linearGradient id="armFade" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="${C.o}" stop-opacity="1"/><stop offset="0.3" stop-color="${C.o}" stop-opacity="1"/><stop offset="1" stop-color="${C.o}" stop-opacity="0"/></linearGradient><clipPath id="cr"><rect x="-196" y="${TELE_TOP}" width="190" height="${TELE_H}"/></clipPath></defs>
+<defs><linearGradient id="armFade" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="${C.o}" stop-opacity="1"/><stop offset="0.3" stop-color="${C.o}" stop-opacity="1"/><stop offset="1" stop-color="${C.o}" stop-opacity="0"/></linearGradient></defs>
 <rect width="100%" height="100%" fill="#000000"/>
 <svg width="100%" height="100%" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice">
 ${stars(110, 0.5, 0.9, 's1')}
@@ -174,11 +173,11 @@ ${railRight(Y, 22, [[50, C.pw], [132, C.o]])}
 ${railRight(Y + 28, 8, [[124, C.l], [58, C.pe]])}
 <text class="sub" x="-14" y="${CLOCK_LABEL}" text-anchor="end">STARDATE</text>
 <g transform="translate(0 ${CLOCK_LABEL})"><!-- clocks --></g>
+<text class="sub" x="-14" y="${ONCALL_LABEL}" text-anchor="end">ON CALL</text>
+<g transform="translate(0 ${ONCALL_LABEL})"><!-- oncall --></g>
 <text class="sub" x="-14" y="${SENSOR_LABEL}" text-anchor="end">SENSOR ARRAY</text>
 <g class="schem"><circle cx="-80" cy="${DIAL}" r="48"/><circle cx="-80" cy="${DIAL}" r="30"/><path d="M-136 ${DIAL}H-24M-80 ${DIAL - 56}V${DIAL + 56}"/></g>
 <g class="spin"><path class="schem" d="M-128 ${DIAL}A48 48 0 0 1 -80 ${DIAL - 48}" stroke="${C.o}"/><circle class="blip" cx="-80" cy="${DIAL - 48}" r="4" fill="${C.pe}"/></g>
-<text class="sub" x="-14" y="${TELE_LABEL}" text-anchor="end">TELEMETRY</text>
-<g clip-path="url(#cr)"><g class="tele scrollR">${tR.out}</g></g>
 ${bigChart(-196, CHART_BASE, 9, 14, 6, 110)}
 </svg>
 <svg x="100%" y="100%" width="1" height="1" overflow="visible">

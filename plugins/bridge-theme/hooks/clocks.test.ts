@@ -33,9 +33,9 @@ describe('world clocks', () => {
     expect(local('UTC', '2026-11-24T10:07:00Z')).toBe('10:07')
   })
 
-  test('stardate is the year and how far through it', async () => {
-    expect(stardate(at('2026-01-01T00:00:00Z'))).toBe('2026.000')
-    expect(stardate(at('2026-07-02T12:00:00Z'))).toBe('2026.500')
+  test('stardate is the UTC date as YYYY.MM.DD', async () => {
+    expect(stardate(at('2026-01-01T00:00:00Z'))).toBe('2026.01.01')
+    expect(stardate(at('2026-11-24T23:59:00Z'))).toBe('2026.11.24')
   })
 
   test('the scene is filled in and told the time', async () => {

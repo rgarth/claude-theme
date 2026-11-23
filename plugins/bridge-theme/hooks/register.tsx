@@ -1,8 +1,10 @@
-import type { Register, ThemeMessageRule, ThemeSetArgs } from 'claude-code'
+import type { EngineInterface, Register, ThemeMessageRule, ThemeSetArgs } from 'claude-code'
 
 import { makeColors } from './make-colors.js'
 import { BAND, BAND_HEIGHT } from './band'
 import { sceneAt } from './clocks'
+import { fetchEscalations, fetchOnCall, onCallSvg } from './pagerduty'
+import type { PagerDutyConfig, PagerDutyState } from './pagerduty'
 import { SCENE } from './scene'
 
 // Bridge Theme: an early-90s optimistic console. Pitch black, flat pastel
@@ -94,7 +96,63 @@ const LOOK: ThemeSetArgs = {
   },
 }
 
-export const register: Register = on => {
+// The latest PagerDuty readings; the backdrop draws from these.
+let state: PagerDutyState | undefined
+
+// The PagerDuty server starts with the session and takes a few seconds to
+// connect; until it does, a call finds no tool. That isn't a failure: stay on
+// ACQUIRING and try again shortly.
+const RETRY_EVERY = 15_000
+const RETRIES = 16 // four minutes
+const isStillConnecting = (error: unknown) => String(error).includes('no connected MCP tool')
+
+async function readOnCall($: EngineInterface, pd: PagerDutyConfig, attempt = 0): Promise<void> {
+  try {
+    const found = await fetchOnCall((s, t, a) => $.mcp.call(s, t, a), pd, await $.clock.now())
+    state = { ...state, ...found, onCallError: undefined }
+  } catch (error) {
+    if (isStillConnecting(error) && attempt < RETRIES) {
+      $.clock.after(RETRY_EVERY, () => void readOnCall($, pd, attempt + 1))
+      return
+    }
+    state = { ...state, onCallError: String(error).slice(0, 300) }
+    $.ui.log(`bridge-theme: on-call lookup failed: ${state.onCallError}`)
+  }
+  $.ui.invalidate('ui.render')
+}
+
+async function readEscalations($: EngineInterface, pd: PagerDutyConfig, attempt = 0): Promise<void> {
+  try {
+    const escalations = await fetchEscalations((s, t, a) => $.mcp.call(s, t, a), pd)
+    state = { ...state, escalations, escalationsError: undefined }
+  } catch (error) {
+    if (isStillConnecting(error) && attempt < RETRIES) {
+      $.clock.after(RETRY_EVERY, () => void readEscalations($, pd, attempt + 1))
+      return
+    }
+    state = { ...state, escalationsError: String(error).slice(0, 300) }
+    $.ui.log(`bridge-theme: incident lookup failed: ${state.escalationsError}`)
+  }
+  $.ui.invalidate('ui.render')
+}
+
+const ON_CALL_EVERY = 15 * 60_000 // on-call changes rarely; overrides included
+const ESCALATIONS_EVERY = 5 * 60_000
+
+export const register: Register = (on, options) => {
+  const str = (key: string, fallback = '') => {
+    const v = options[key]
+    return typeof v === 'string' && v.trim() ? v.trim() : fallback
+  }
+  const scope = str('incidentScope', 'teams')
+  const pd: PagerDutyConfig = {
+    server: str('pagerdutyServer', 'pagerduty'),
+    primarySchedule: str('primarySchedule'),
+    secondarySchedule: str('secondarySchedule'),
+    incidentScope: scope === 'all' || scope === 'assigned' ? scope : 'teams',
+  }
+  const isConfigured = Boolean(pd.primarySchedule || pd.secondarySchedule)
+
   on('session.start', async ($, e, next) => {
     const unpainted = problems.find(line => line.startsWith("Desktop won't paint"))
     if (unpainted !== undefined) {
@@ -119,10 +177,41 @@ export const register: Register = on => {
       $.clock.every(60_000, () => $.ui.invalidate('ui.render'))
     })
 
+    // PagerDuty, through the user's own MCP server: on-call every 15 minutes,
+    // open high-urgency incidents every 5. /oncall reads both at once.
+    await $.command.register({ name: 'oncall', description: 'Refresh the ON CALL panel now and show what PagerDuty returned' })
+    if (isConfigured) {
+      void readOnCall($, pd)
+      void readEscalations($, pd)
+      $.clock.every(ON_CALL_EVERY, () => void readOnCall($, pd))
+      $.clock.every(ESCALATIONS_EVERY, () => void readEscalations($, pd))
+    }
+
     return next(e)
   })
 
   // A console rail fixed above the message box, in front of the chat.
+  // /oncall: refresh now and say what came back (or why it failed).
+  on('command.run', { command: 'oncall' }, async $ => {
+    if (!isConfigured) return { text: 'ON CALL is not configured: set primarySchedule and secondarySchedule under pluginConfigs in ~/.claude/settings.json.' }
+    // A command must answer within 10 seconds: give the lookups 7, and if the
+    // server isn't connected yet, leave the panel retrying in the background.
+    await Promise.race([Promise.all([readOnCall($, pd, RETRIES), readEscalations($, pd, RETRIES)]), $.clock.sleep(7_000)])
+    if (isStillConnecting(state?.onCallError) || isStillConnecting(state?.escalationsError)) {
+      void readOnCall($, pd)
+      void readEscalations($, pd)
+      return {
+        text: `The "${pd.server}" MCP server isn't connected in this session. If you added it after this session started, start a new session; otherwise it may still be connecting, and the panel will keep trying for four minutes.`,
+      }
+    }
+    const who = (label: string, o?: { name: string; until: string }) => `${label}: ${o ? `${o.name} until ${o.until} UTC` : 'none found'}`
+    const lines = [
+      state?.onCallError ? `On-call lookup failed: ${state.onCallError}` : `${who('Primary', state?.primary)}; ${who('Secondary', state?.secondary)}`,
+      state?.escalationsError ? `Escalations lookup failed: ${state.escalationsError}` : `Open high-urgency escalations: ${state?.escalations?.length ?? 0}`,
+    ]
+    return { text: lines.join('\n') }
+  })
+
   on('ui.render', { component: 'AbovePrompt' }, ($, e, next) => {
     if ((e.surface !== 'desktop' && e.surface !== 'mobile') || e.props.hasSurvey) {
       return next(e)
@@ -136,7 +225,7 @@ export const register: Register = on => {
       return next(e)
     }
     const { Svg } = $.ui.resolve(e)
-    const source = sceneAt(SCENE, await $.clock.now())
-    return <Svg source={source} alt="Pitch-black console with flat pastel rails, world clocks, scrolling telemetry and a slow schematic" isInteractive />
+    const source = sceneAt(SCENE, await $.clock.now(), onCallSvg(state, isConfigured))
+    return <Svg source={source} alt="Pitch-black console with flat pastel rails, world clocks, on-call status and a minute dial" isInteractive />
   })
 }
