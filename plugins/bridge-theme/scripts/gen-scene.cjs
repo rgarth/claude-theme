@@ -94,7 +94,7 @@ function bigChart(x, base, n, w, gap, maxH) {
   for (let i = 0; i < n; i++) {
     const bx = x + gap + i * (w + gap)
     const wave = 1 + Math.floor(rnd() * 3), dur = (9 + rnd() * 10).toFixed(1), delay = (-rnd() * 20).toFixed(1)
-    out += `<rect x="${bx}" y="${base - maxH - 4}" width="${w}" height="${maxH}" fill="${cols[i % cols.length]}" style="transform-origin: ${bx}px ${base - 4}px; animation: wave${wave} ${dur}s ease-in-out ${delay}s infinite"/>`
+    out += `<rect x="${bx}" y="${base - maxH - 4}" width="${w}" height="${maxH}" fill="${cols[i % cols.length]}" style="transform-origin: ${bx}px ${base - 4}px; animation: wave${wave} ${dur}s ease-in-out calc(${delay}s - var(--t) * 1s) infinite"/>`
   }
   return out
 }
@@ -107,20 +107,25 @@ function railRight(y, h, items) { // flush to the right edge, pill cap on the ou
 
 const tx = X + V + 18, ty = Y + A + r + 16
 // Right column, top to bottom, with roomy gaps between each part.
-const SENSOR_LABEL = 150, DIAL = SENSOR_LABEL + 82, TELE_LABEL = DIAL + 48 + 64
-const TELE_TOP = TELE_LABEL + 16, TELE_H = 280, CHART_BASE = TELE_TOP + TELE_H + 60 + 124
+const CLOCK_LABEL = 150 // STARDATE heading; the mod fills in the clocks below it
+const SENSOR_LABEL = CLOCK_LABEL + 176, DIAL = SENSOR_LABEL + 82, TELE_LABEL = DIAL + 48 + 64
+const TELE_TOP = TELE_LABEL + 16, TELE_H = 140, CHART_BASE = TELE_TOP + TELE_H + 50 + 124
 const tR = telemetry(-190, TELE_TOP + 20, 22, [80, 94], 21)
 const FRAME_END = 75 // percent of the window's height where the left frame stops
 const midTop = top.end, midBottom = bot.end // px from top, px from bottom
 
 const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
 <style>
-.s1 { fill: #ffffff; opacity: 0.55; animation: drift 1200s linear infinite; }
-.s2 { fill: #ffe9d6; opacity: 0.7; animation: drift 700s linear infinite; }
+svg { --t: 0; }
+.s1 { fill: #ffffff; opacity: 0.55; animation: drift 1200s linear calc(0s - var(--t) * 1s) infinite; }
+.s2 { fill: #ffe9d6; opacity: 0.7; animation: drift 700s linear calc(0s - var(--t) * 1s) infinite; }
 @keyframes drift { from { transform: translateX(0px); } to { transform: translateX(-1600px); } }
 text { font-family: 'Swiss 911 Ultra Compressed BT', 'Swiss911 UCm BT', 'Swiss 911 Ultra Compressed', 'DIN Condensed', 'Arial Narrow', sans-serif; font-stretch: condensed; font-size: 11px; letter-spacing: 1px; }
 .tele { opacity: 0.8; }
 .tele text { font-size: 18px; letter-spacing: 0.5px; }
+.city { fill: ${C.l}; font-size: 16px; letter-spacing: 1px; }
+.time { fill: #ffffff; font-size: 22px; letter-spacing: 0.5px; text-anchor: end; }
+.date { fill: ${C.pe}; font-size: 26px; letter-spacing: 1px; text-anchor: end; }
 .bracket { fill: none; stroke: ${C.pw}; stroke-width: 1; }
 @keyframes wave1 { 0%, 100% { transform: scaleY(0.75); } 30% { transform: scaleY(0.35); } 55% { transform: scaleY(0.9); } 80% { transform: scaleY(0.5); } }
 @keyframes wave2 { 0%, 100% { transform: scaleY(0.4); } 25% { transform: scaleY(0.85); } 60% { transform: scaleY(0.6); } 85% { transform: scaleY(1); } }
@@ -128,17 +133,15 @@ text { font-family: 'Swiss 911 Ultra Compressed BT', 'Swiss911 UCm BT', 'Swiss 9
 .lbl { fill: #000000; font-size: 18px; letter-spacing: 1px; text-anchor: end; }
 .head { fill: ${C.o}; font-size: 30px; letter-spacing: 2px; }
 .sub { fill: ${C.o}; font-size: 17px; letter-spacing: 1.5px; }
-.scrollR { animation: upR 80s linear infinite; }
+.scrollR { animation: upR 80s linear calc(0s - var(--t) * 1s) infinite; }
 @keyframes upR { from { transform: translateY(0px); } to { transform: translateY(-${tR.span}px); } }
-.blink1 { animation: blink 5s steps(1) infinite; }
-.blink2 { animation: blink 8s steps(1) infinite; animation-delay: -3s; }
+.blink1 { animation: blink 5s steps(1) calc(0s - var(--t) * 1s) infinite; }
+.blink2 { animation: blink 8s steps(1) calc(-3s - var(--t) * 1s) infinite; }
 @keyframes blink { 0%, 60% { opacity: 1; } 61%, 100% { opacity: 0.35; } }
-.bar { animation: grow 9s ease-in-out infinite alternate; }
-.b1 { animation-duration: 12s; } .b2 { animation-duration: 7s; animation-delay: -4s; } .b3 { animation-duration: 15s; animation-delay: -6s; }
 @keyframes grow { from { transform: scaleY(1); } to { transform: scaleY(0.45); } }
-.spin { animation: spin 160s linear infinite; transform-origin: -80px ${DIAL}px; }
+.spin { animation: spin 160s linear calc(0s - var(--t) * 1s) infinite; transform-origin: -80px ${DIAL}px; }
 /* the dial's dot holds solid for a second, then blips out and back */
-.blip { animation: blip 1.3s linear infinite; }
+.blip { animation: blip 1.3s linear calc(0s - var(--t) * 1s) infinite; }
 @keyframes blip { 0%, 77% { opacity: 1; } 87% { opacity: 0.1; } 100% { opacity: 1; } }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .schem { fill: none; stroke: ${C.pw}; stroke-width: 2; opacity: 0.55; }
@@ -168,6 +171,8 @@ ${top.labels.map(([far, , w]) => label(far - 7, w)).join('')}
 <svg x="100%" y="0" width="1" height="1" overflow="visible">
 ${railRight(Y, 22, [[50, C.pw], [132, C.o]])}
 ${railRight(Y + 28, 8, [[124, C.l], [58, C.pe]])}
+<text class="sub" x="-14" y="${CLOCK_LABEL}" text-anchor="end">STARDATE</text>
+<g transform="translate(0 ${CLOCK_LABEL})"><!-- clocks --></g>
 <text class="sub" x="-14" y="${SENSOR_LABEL}" text-anchor="end">SENSOR ARRAY</text>
 <g class="schem"><circle cx="-80" cy="${DIAL}" r="48"/><circle cx="-80" cy="${DIAL}" r="30"/><path d="M-136 ${DIAL}H-24M-80 ${DIAL - 56}V${DIAL + 56}"/></g>
 <g class="spin"><path class="schem" d="M-80 ${DIAL - 48}A48 48 0 0 1 -32 ${DIAL}" stroke="${C.o}"/><circle class="blip" cx="-32" cy="${DIAL}" r="4" fill="${C.pe}"/></g>

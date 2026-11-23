@@ -2,6 +2,7 @@ import type { Register, ThemeMessageRule, ThemeSetArgs } from 'claude-code'
 
 import { makeColors } from './make-colors.js'
 import { BAND, BAND_HEIGHT } from './band'
+import { sceneAt } from './clocks'
 import { SCENE } from './scene'
 
 // Bridge Theme: an early-90s optimistic console. Pitch black, flat pastel
@@ -110,6 +111,14 @@ export const register: Register = on => {
     // Say why only while nothing draws the look; clear any older notice.
     $.ui.status(set.isDrawn ? undefined : set.reason)
 
+    // Redraw the backdrop on each new minute so the clocks stay current.
+    const now = await $.clock.now()
+    const toNextMinute = 60_000 - (now % 60_000) + 250
+    $.clock.after(toNextMinute, () => {
+      $.ui.invalidate('ui.render')
+      $.clock.every(60_000, () => $.ui.invalidate('ui.render'))
+    })
+
     return next(e)
   })
 
@@ -122,11 +131,12 @@ export const register: Register = on => {
     return <Svg source={BAND} alt="An orange console rail fading out to the right" height={BAND_HEIGHT} />
   })
 
-  on('ui.render', { component: 'Backdrop' }, ($, e, next) => {
+  on('ui.render', { component: 'Backdrop' }, async ($, e, next) => {
     if (e.surface !== 'desktop' && e.surface !== 'mobile') {
       return next(e)
     }
     const { Svg } = $.ui.resolve(e)
-    return <Svg source={SCENE} alt="Pitch-black console with flat pastel rails, scrolling telemetry and a slow schematic" isInteractive />
+    const source = sceneAt(SCENE, await $.clock.now())
+    return <Svg source={source} alt="Pitch-black console with flat pastel rails, world clocks, scrolling telemetry and a slow schematic" isInteractive />
   })
 }
