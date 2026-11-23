@@ -1,0 +1,11 @@
+{
+  "name": "claude-theme",
+  "owner": { "name": "rgarth" },
+  "plugins": [
+    {
+      "name": "bridge-theme",
+      "source": "./plugins/bridge-theme",
+      "description": "Starship bridge console theme: pitch black, flat pastel elbows and rails, drifting star-field"
+    }
+  ]
+}
