@@ -89,7 +89,8 @@ function chart(x, y, n, w, gap, maxH) {
 function bigChart(x, base, n, w, gap, maxH) {
   const cols = [C.pw, C.pw, C.pe, C.pw, C.l, C.pw, C.pe]
   const width = n * (w + gap) - gap + 2 * gap
-  let out = `<path class="bracket" d="M${x} ${base - maxH - 14}V${base}H${x + width}V${base - maxH - 14}"/>`
+  // No left side: a base line and a right-hand edge only.
+  let out = `<path class="bracket" d="M${x} ${base}H${x + width}V${base - maxH - 14}"/>`
   for (let i = 0; i < n; i++) {
     const bx = x + gap + i * (w + gap)
     const wave = 1 + Math.floor(rnd() * 3), dur = (9 + rnd() * 10).toFixed(1), delay = (-rnd() * 20).toFixed(1)
@@ -105,7 +106,10 @@ function railRight(y, h, items) { // flush to the right edge, pill cap on the ou
 }
 
 const tx = X + V + 18, ty = Y + A + r + 16
-const tR = telemetry(-190, 352, 22, [80, 94], 21)
+// Right column, top to bottom, with roomy gaps between each part.
+const SENSOR_LABEL = 150, DIAL = SENSOR_LABEL + 82, TELE_LABEL = DIAL + 48 + 64
+const TELE_TOP = TELE_LABEL + 16, TELE_H = 280, CHART_BASE = TELE_TOP + TELE_H + 60 + 124
+const tR = telemetry(-190, TELE_TOP + 20, 22, [80, 94], 21)
 const FRAME_END = 75 // percent of the window's height where the left frame stops
 const midTop = top.end, midBottom = bot.end // px from top, px from bottom
 
@@ -117,7 +121,7 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
 text { font-family: 'Swiss 911 Ultra Compressed BT', 'Swiss911 UCm BT', 'Swiss 911 Ultra Compressed', 'DIN Condensed', 'Arial Narrow', sans-serif; font-stretch: condensed; font-size: 11px; letter-spacing: 1px; }
 .tele { opacity: 0.8; }
 .tele text { font-size: 18px; letter-spacing: 0.5px; }
-.bracket { fill: none; stroke: ${C.pw}; stroke-width: 2; }
+.bracket { fill: none; stroke: ${C.pw}; stroke-width: 1; }
 @keyframes wave1 { 0%, 100% { transform: scaleY(0.75); } 30% { transform: scaleY(0.35); } 55% { transform: scaleY(0.9); } 80% { transform: scaleY(0.5); } }
 @keyframes wave2 { 0%, 100% { transform: scaleY(0.4); } 25% { transform: scaleY(0.85); } 60% { transform: scaleY(0.6); } 85% { transform: scaleY(1); } }
 @keyframes wave3 { 0%, 100% { transform: scaleY(0.6); } 40% { transform: scaleY(0.2); } 70% { transform: scaleY(0.95); } }
@@ -132,14 +136,17 @@ text { font-family: 'Swiss 911 Ultra Compressed BT', 'Swiss911 UCm BT', 'Swiss 9
 .bar { animation: grow 9s ease-in-out infinite alternate; }
 .b1 { animation-duration: 12s; } .b2 { animation-duration: 7s; animation-delay: -4s; } .b3 { animation-duration: 15s; animation-delay: -6s; }
 @keyframes grow { from { transform: scaleY(1); } to { transform: scaleY(0.45); } }
-.spin { animation: spin 160s linear infinite; transform-origin: -80px 246px; }
+.spin { animation: spin 160s linear infinite; transform-origin: -80px ${DIAL}px; }
+/* the dial's dot holds solid for a second, then blips out and back */
+.blip { animation: blip 1.3s linear infinite; }
+@keyframes blip { 0%, 77% { opacity: 1; } 87% { opacity: 0.1; } 100% { opacity: 1; } }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .schem { fill: none; stroke: ${C.pw}; stroke-width: 2; opacity: 0.55; }
 .midbar { x: ${X}px; y: ${midTop}px; width: ${V}px; height: calc(${FRAME_END}% - ${midTop + midBottom}px); }
 /* the cut and its word sit halfway along the middle block */
 .midcut { x: ${X}px; y: calc(${FRAME_END / 2}% + ${(midTop - midBottom - G) / 2}px); width: ${V}px; height: ${G}px; }
 </style>
-<defs><linearGradient id="armFade" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="${C.o}" stop-opacity="1"/><stop offset="0.3" stop-color="${C.o}" stop-opacity="1"/><stop offset="1" stop-color="${C.o}" stop-opacity="0"/></linearGradient><clipPath id="cr"><rect x="-196" y="334" width="190" height="300"/></clipPath></defs>
+<defs><linearGradient id="armFade" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="${C.o}" stop-opacity="1"/><stop offset="0.3" stop-color="${C.o}" stop-opacity="1"/><stop offset="1" stop-color="${C.o}" stop-opacity="0"/></linearGradient><clipPath id="cr"><rect x="-196" y="${TELE_TOP}" width="190" height="${TELE_H}"/></clipPath></defs>
 <rect width="100%" height="100%" fill="#000000"/>
 <svg width="100%" height="100%" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice">
 ${stars(110, 0.5, 0.9, 's1')}
@@ -161,12 +168,12 @@ ${top.labels.map(([far, , w]) => label(far - 7, w)).join('')}
 <svg x="100%" y="0" width="1" height="1" overflow="visible">
 ${railRight(Y, 22, [[50, C.pw], [132, C.o]])}
 ${railRight(Y + 28, 8, [[124, C.l], [58, C.pe]])}
-<text class="sub" x="-80" y="184" text-anchor="middle">SENSOR ARRAY</text>
-<g class="schem"><circle cx="-80" cy="246" r="48"/><circle cx="-80" cy="246" r="30"/><path d="M-136 246H-24M-80 190V302"/></g>
-<g class="spin"><path class="schem" d="M-80 198A48 48 0 0 1 -32 246" stroke="${C.o}"/><circle cx="-32" cy="246" r="4" fill="${C.o}"/></g>
-<text class="sub" x="-14" y="324" text-anchor="end">TELEMETRY</text>
+<text class="sub" x="-14" y="${SENSOR_LABEL}" text-anchor="end">SENSOR ARRAY</text>
+<g class="schem"><circle cx="-80" cy="${DIAL}" r="48"/><circle cx="-80" cy="${DIAL}" r="30"/><path d="M-136 ${DIAL}H-24M-80 ${DIAL - 56}V${DIAL + 56}"/></g>
+<g class="spin"><path class="schem" d="M-80 ${DIAL - 48}A48 48 0 0 1 -32 ${DIAL}" stroke="${C.o}"/><circle class="blip" cx="-32" cy="${DIAL}" r="4" fill="${C.pe}"/></g>
+<text class="sub" x="-14" y="${TELE_LABEL}" text-anchor="end">TELEMETRY</text>
 <g clip-path="url(#cr)"><g class="tele scrollR">${tR.out}</g></g>
-${bigChart(-196, 790, 9, 14, 6, 110)}
+${bigChart(-196, CHART_BASE, 9, 14, 6, 110)}
 </svg>
 <svg x="100%" y="100%" width="1" height="1" overflow="visible">
 ${railRight(-32, 22, [[30, C.co], [110, C.o], [24, C.pe, 'blink2'], [140, C.l]])}
