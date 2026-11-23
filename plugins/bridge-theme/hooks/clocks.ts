@@ -68,6 +68,8 @@ export function clocksSvg(now: number): string {
 // The scene at a given moment: clocks filled in, and every animation told the
 // time so a redraw carries on where the last one was instead of restarting.
 export function sceneAt(scene: string, now: number): string {
-  const seconds = ((now / 1000) % 1_000_000).toFixed(2)
+  // Seconds since the epoch, wrapped every 10 days: a whole number of minutes,
+  // so the minute dial stays on the real second hand.
+  const seconds = ((now / 1000) % 864_000).toFixed(2)
   return scene.replace('--t: 0;', `--t: ${seconds};`).replace('<!-- clocks -->', clocksSvg(now))
 }

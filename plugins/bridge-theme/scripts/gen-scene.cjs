@@ -139,10 +139,11 @@ text { font-family: 'Swiss 911 Ultra Compressed BT', 'Swiss911 UCm BT', 'Swiss 9
 .blink2 { animation: blink 8s steps(1) calc(-3s - var(--t) * 1s) infinite; }
 @keyframes blink { 0%, 60% { opacity: 1; } 61%, 100% { opacity: 0.35; } }
 @keyframes grow { from { transform: scaleY(1); } to { transform: scaleY(0.45); } }
-.spin { animation: spin 160s linear calc(0s - var(--t) * 1s) infinite; transform-origin: -80px ${DIAL}px; }
-/* the dial's dot holds solid for a second, then blips out and back */
-.blip { animation: blip 1.3s linear calc(0s - var(--t) * 1s) infinite; }
-@keyframes blip { 0%, 77% { opacity: 1; } 87% { opacity: 0.1; } 100% { opacity: 1; } }
+/* one turn a minute: the dot is at the top on each new minute */
+.spin { animation: spin 60s linear calc(0s - var(--t) * 1s) infinite; transform-origin: -80px ${DIAL}px; }
+/* the dial's dot beats once a second: solid, then a quick blip that lands back on each whole second */
+.blip { animation: blip 1s linear calc(0s - var(--t) * 1s) infinite; }
+@keyframes blip { 0%, 82% { opacity: 1; } 91% { opacity: 0.1; } 100% { opacity: 1; } }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .schem { fill: none; stroke: ${C.pw}; stroke-width: 2; opacity: 0.55; }
 .midbar { x: ${X}px; y: ${midTop}px; width: ${V}px; height: calc(${FRAME_END}% - ${midTop + midBottom}px); }
@@ -175,7 +176,7 @@ ${railRight(Y + 28, 8, [[124, C.l], [58, C.pe]])}
 <g transform="translate(0 ${CLOCK_LABEL})"><!-- clocks --></g>
 <text class="sub" x="-14" y="${SENSOR_LABEL}" text-anchor="end">SENSOR ARRAY</text>
 <g class="schem"><circle cx="-80" cy="${DIAL}" r="48"/><circle cx="-80" cy="${DIAL}" r="30"/><path d="M-136 ${DIAL}H-24M-80 ${DIAL - 56}V${DIAL + 56}"/></g>
-<g class="spin"><path class="schem" d="M-80 ${DIAL - 48}A48 48 0 0 1 -32 ${DIAL}" stroke="${C.o}"/><circle class="blip" cx="-32" cy="${DIAL}" r="4" fill="${C.pe}"/></g>
+<g class="spin"><path class="schem" d="M-128 ${DIAL}A48 48 0 0 1 -80 ${DIAL - 48}" stroke="${C.o}"/><circle class="blip" cx="-80" cy="${DIAL - 48}" r="4" fill="${C.pe}"/></g>
 <text class="sub" x="-14" y="${TELE_LABEL}" text-anchor="end">TELEMETRY</text>
 <g clip-path="url(#cr)"><g class="tele scrollR">${tR.out}</g></g>
 ${bigChart(-196, CHART_BASE, 9, 14, 6, 110)}
