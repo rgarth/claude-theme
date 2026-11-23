@@ -4,8 +4,11 @@ An original console look for the Claude desktop and mobile apps, in the spirit o
 
 - **Pitch black, 100% flat:** no glow, shadows, gradients or frosted glass. Accents are tangerine, peach, lilac, periwinkle and coral.
 - **Your messages** are solid pastel blocks with black text, rounded on one side, cycling through four colours. **Claude's replies** sit on black inside a small lilac elbow (bar down the left, arm along the top). **Tool rows** are periwinkle blocks with black text. Headings are bold and tangerine.
-- **Backdrop:** faint drifting stars; a full-height segmented console frame down the left edge, with rounded elbows into thick top and bottom arms, and flat rails on the right; slowly scrolling telemetry numbers; a pastel bar chart; and a rotating schematic dial.
-- **Console rail:** a solid tangerine rail in the band just above the message box, fixed in front of the chat while messages scroll behind it.
+- **Left frame:** a wide segmented console bar just right of the app's sidebar, labelled BRIDGE, SENSORS, OVERRIDE, STATUS, SYSTEMS, POWER, COMMS and AUX 07. It sweeps through a rounded elbow into a thin top arm that fades out, under an NCC-1701 header, and ends three-quarters of the way down on a square block.
+- **Right column:** two short rails, a slowly turning SENSOR ARRAY dial, right-aligned TELEMETRY numbers that scroll upward, and a bracketed bar graph whose bars slowly rise and fall.
+- **Stars:** a faint drifting star-field behind everything.
+- **Console rail:** a thin, square-cornered tangerine rail that fades out to the right, in the band just above the message box. It stays in front of the chat while messages scroll behind it.
+- **Font:** backdrop labels ask for Swiss 911 Ultra Compressed and fall back to DIN Condensed, which ships with macOS.
 - Always dark. A light variant is built in: remove `overrideColorScheme: 'dark'` in `hooks/register.tsx`.
 
 ## Editing the backdrop

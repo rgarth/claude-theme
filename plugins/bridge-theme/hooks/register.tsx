@@ -119,7 +119,7 @@ export const register: Register = on => {
       return next(e)
     }
     const { Svg } = $.ui.resolve(e)
-    return <Svg source={BAND} alt="A solid orange console rail" height={BAND_HEIGHT} isInteractive />
+    return <Svg source={BAND} alt="An orange console rail fading out to the right" height={BAND_HEIGHT} />
   })
 
   on('ui.render', { component: 'Backdrop' }, ($, e, next) => {

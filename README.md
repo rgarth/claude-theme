@@ -8,9 +8,9 @@ An original console look in the spirit of early-90s optimistic sci-fi terminals,
 
 - Pitch-black background, completely flat: no glow, gradients or frosted glass.
 - Tangerine, peach, lilac, periwinkle and coral accents.
-- A segmented console frame down the left of the window, with rounded elbows into thin top and bottom arms.
-- A drifting star-field, scrolling telemetry numbers, a pastel bar chart and a slowly turning schematic dial.
-- Your messages as solid pastel blocks; Claude's replies framed by a small lilac elbow; a solid tangerine rail fixed above the message box.
+- A labelled, segmented console frame down the left of the window, with a rounded elbow into a thin top arm.
+- A right-hand column with a sensor dial, scrolling right-aligned telemetry and a slowly moving bar graph, over a drifting star-field.
+- Your messages as solid pastel blocks; Claude's replies framed by a small lilac elbow; a thin tangerine rail fixed above the message box.
 
 It is always dark and draws nothing in the terminal or editors, which don't draw themes. The left frame is placed to sit just right of the desktop app's sidebar when the sidebar is open.
 
