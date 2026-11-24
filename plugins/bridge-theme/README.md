@@ -7,8 +7,8 @@ An original console look for the Claude desktop and mobile apps, in the spirit o
 - **Left frame:** a wide segmented console bar just right of the app's sidebar, labelled BRIDGE, SENSORS, OVERRIDE, STATUS, SYSTEMS, POWER, COMMS and AUX 07. It sweeps through a rounded elbow into a thin top arm that fades out, under an NCC-1701 header, and ends three-quarters of the way down on a square block.
 - **Right column:** a thin tangerine rail over a lilac and peach pill; a STARDATE block with today's UTC date and live clocks for Sydney, Bangalore, San Francisco and UTC (redrawn each minute); an ON CALL block with the primary and secondary on-call and open high-urgency incidents from PagerDuty; a SENSOR ARRAY dial that turns once a minute with a dot that beats each second; and a bracketed bar graph whose bars slowly rise and fall.
 - **Stars:** a faint star-field that streams out from the centre, as if flying forward.
-- **Console rail:** a thin, square-cornered tangerine rail that fades out to the right, in the band just above the message box. It stays in front of the chat while messages scroll behind it, and ends in a **FULL POWER / LOW POWER** toggle.
-- **Low power:** the toggle (or `/lowpower`) freezes every backdrop animation where it stands, so the app stops repainting the backdrop each frame; clocks and on-call still update. The choice is remembered between sessions.
+- **Console rail:** a thin, square-cornered tangerine rail that fades out to the right, in the band just above the message box. It stays in front of the chat while messages scroll behind it, and ends in a **WARP / IMPULSE** power toggle.
+- **Impulse (low power):** the toggle (or `/lowpower`) freezes every backdrop animation where it stands, so the app stops repainting the backdrop each frame; clocks and on-call still update. The choice is remembered between sessions.
 - **Font:** backdrop labels ask for Swiss 911 Ultra Compressed and fall back to DIN Condensed, which ships with macOS.
 - Always dark. A light variant is built in: remove `overrideColorScheme: 'dark'` in `hooks/register.tsx`.
 

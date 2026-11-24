@@ -190,7 +190,7 @@ export const register: Register = (on, options) => {
     // PagerDuty, through the user's own MCP server: on-call every 15 minutes,
     // open high-urgency incidents every 5. /oncall reads both at once.
     await $.command.register({ name: 'oncall', description: 'Refresh the ON CALL panel now and show what PagerDuty returned' })
-    await $.command.register({ name: 'lowpower', description: 'Freeze or restart the bridge backdrop animations' })
+    await $.command.register({ name: 'lowpower', description: 'Switch the bridge backdrop between warp (animated) and impulse (frozen, low power)' })
     if (isConfigured) {
       void readOnCall($, pd)
       void readEscalations($, pd)
@@ -203,7 +203,7 @@ export const register: Register = (on, options) => {
 
   on('command.run', { command: 'lowpower' }, async $ => {
     await setLowPower($, !isLowPower)
-    return { text: isLowPower ? 'Low power: backdrop animations frozen.' : 'Full power: backdrop animations running.' }
+    return { text: isLowPower ? 'Impulse power: backdrop animations frozen.' : 'Warp power: backdrop animations running.' }
   })
 
   // /oncall: refresh now and say what came back (or why it failed).
@@ -239,7 +239,7 @@ export const register: Register = (on, options) => {
           <Svg source={BAND} alt="An orange console rail fading out to the right" height={BAND_HEIGHT} />
         </Box>
         <Button key="power" plain dimColor={!isLowPower} onPress={() => setLowPower($, !isLowPower)}>
-          {isLowPower ? '◐ LOW POWER' : '● FULL POWER'}
+          {isLowPower ? '◐ IMPULSE' : '● WARP'}
         </Button>
       </Box>
     )
