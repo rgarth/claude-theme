@@ -5,15 +5,18 @@
 // from the mod's options (settings.json `pluginConfigs`), and the token stays
 // in the MCP server's own config.
 
+import { LAYOUT } from './scene'
+
 export type OnCall = { name: string; until: string }
 export type Escalation = { number: number; service: string; isAcknowledged: boolean }
-export type PagerDutyState = {
-  primary?: OnCall
-  secondary?: OnCall
-  escalations?: Escalation[]
-  onCallError?: string
-  escalationsError?: string
-}
+export type OnCallPair = { primary?: OnCall; secondary?: OnCall }
+
+// Where one lookup stands: not answered yet, answered, or failed and why.
+export type Reading<T> = { status: 'acquiring' } | { status: 'ok'; value: T } | { status: 'failed'; message: string }
+export const ACQUIRING = { status: 'acquiring' } as const
+
+// The two lookups the ON CALL block shows, each on its own.
+export type Readings = { onCall: Reading<OnCallPair>; escalations: Reading<Escalation[]> }
 
 export type PagerDutyConfig = {
   server: string
@@ -56,7 +59,7 @@ type OnCallEntry = { schedule?: { id?: string }; user?: { summary?: string }; st
 
 // Who is on call now for each schedule. PagerDuty's on-call list already has
 // any overrides applied, so this is whoever is really carrying the pager.
-export async function fetchOnCall(call: Call, cfg: PagerDutyConfig, now: number): Promise<Pick<PagerDutyState, 'primary' | 'secondary'>> {
+export async function fetchOnCall(call: Call, cfg: PagerDutyConfig, now: number): Promise<OnCallPair> {
   const ids = [cfg.primarySchedule, cfg.secondarySchedule].filter(Boolean)
   const entries = responseOf(
     await call(cfg.server, 'browse_schedules', { request: { action: 'list_oncalls', schedule_ids: ids, limit: 20 } }),
@@ -86,37 +89,45 @@ export async function fetchEscalations(call: Call, cfg: PagerDutyConfig): Promis
   }))
 }
 
-// NOT CONNECTED when the MCP server never came up in this session; NO SIGNAL for other failures.
-const problem = (error: string) => (error.includes('no connected MCP tool') ? 'NOT CONNECTED' : 'NO SIGNAL')
+// A lookup that has no value yet, in a word: ACQUIRING while waiting, NOT
+// CONNECTED when the MCP server never came up in this session, NO SIGNAL for
+// any other failure.
+const waiting = (r: { status: 'acquiring' } | { status: 'failed'; message: string }) =>
+  r.status === 'acquiring' ? 'ACQUIRING' : r.message.includes('no connected MCP tool') ? 'NOT CONNECTED' : 'NO SIGNAL'
 const escape = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 const cut = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s)
 
-// The SVG under the ON CALL heading, right-aligned to the column (x = -14),
-// labels on the left (x = -196).
-export function onCallSvg(state: PagerDutyState | undefined): string {
+// The SVG under the ON CALL heading: values right-aligned to the column's right
+// edge, labels from its left. It must fit in LAYOUT.onCallHeight.
+export function onCallSvg({ onCall, escalations }: Readings): string {
+  const { colLeft: L, colRight: R } = LAYOUT
   let out = ''
-  const row = (label: string, who: OnCall | undefined, y: number) => {
-    out += `<text class="city" x="-196" y="${y}">${label}</text>`
-    const name = who ? escape(cut(who.name, 14)) : state?.onCallError ? problem(state.onCallError) : state ? '—' : 'ACQUIRING'
-    out += `<text class="who" x="-14" y="${y}">${name}</text>`
-    if (who?.until) out += `<text class="until" x="-14" y="${y + 16}">UNTIL ${who.until} UTC</text>`
+  const row = (label: string, slot: keyof OnCallPair, y: number) => {
+    out += `<text class="city" x="${L}" y="${y}">${label}</text>`
+    const who = onCall.status === 'ok' ? onCall.value[slot] : undefined
+    const name = onCall.status !== 'ok' ? waiting(onCall) : who ? escape(cut(who.name, 14)) : '—'
+    out += `<text class="who" x="${R}" y="${y}">${name}</text>`
+    if (who?.until) out += `<text class="until" x="${R}" y="${y + 16}">UNTIL ${who.until} UTC</text>`
   }
-  row('PRIMARY', state?.primary, 30)
-  row('SECONDARY', state?.secondary, 76)
+  row('PRIMARY', 'primary', 30)
+  row('SECONDARY', 'secondary', 76)
 
-  const list = state?.escalations
-  out += `<text class="sub" x="-14" y="126" text-anchor="end">ESCALATIONS${list?.length ? ` ${list.length}` : ''}</text>`
-  if (!list) {
-    out += `<text class="clear" x="-14" y="150">${state?.escalationsError ? problem(state.escalationsError) : 'ACQUIRING'}</text>`
-  } else if (list.length === 0) {
-    out += '<text class="clear" x="-14" y="150">ALL CLEAR</text>'
+  if (escalations.status !== 'ok') {
+    out += `<text class="sub" x="${R}" y="126" text-anchor="end">ESCALATIONS</text>`
+    out += `<text class="clear" x="${R}" y="150">${waiting(escalations)}</text>`
+    return out
+  }
+  const all = escalations.value
+  out += `<text class="sub" x="${R}" y="126" text-anchor="end">ESCALATIONS${all.length ? ` ${all.length}` : ''}</text>`
+  if (all.length === 0) {
+    out += `<text class="clear" x="${R}" y="150">ALL CLEAR</text>`
   } else {
-    const shown = list.length > 3 ? list.slice(0, 2) : list
+    const shown = all.length > 3 ? all.slice(0, 2) : all
     shown.forEach((e, i) => {
       const cls = e.isAcknowledged ? 'esc esc-ack' : 'esc esc-new'
-      out += `<text class="${cls}" x="-196" y="${150 + i * 20}">#${e.number}  ${escape(cut(e.service, 15))}</text>`
+      out += `<text class="${cls}" x="${L}" y="${150 + i * 20}">#${e.number}  ${escape(cut(e.service, 15))}</text>`
     })
-    if (list.length > 3) out += `<text class="clear" x="-14" y="190">+${list.length - 2} MORE</text>`
+    if (all.length > 3) out += `<text class="clear" x="${R}" y="190">+${all.length - 2} MORE</text>`
   }
   return out
 }

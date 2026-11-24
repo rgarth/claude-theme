@@ -1,5 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
+import { stubEngine } from './test-engine'
+
 const PANE = {
   plugin: 'bridge-theme',
   component: 'Pane',
@@ -15,23 +17,7 @@ const PANE = {
 } as const
 
 test('the Clocks pane adds, moves, removes and resets clocks, on every surface', async ($, on) => {
-  // Nothing sits beneath the plugin: each hook here stands for the engine.
-  const store = new Map<string, unknown>()
-  on('store.get', (_, e) => ({ value: store.get(e.key) }))
-  on('store.set', (_, e) => {
-    store.set(e.key, e.value)
-    return { value: undefined }
-  })
-  on('theme.set', () => ({ value: { isDrawn: true, requestId: 'look' } }))
-  on('command.register', (_, e) => ({ value: { command: e.name } }))
-  on('ui.open', () => ({ value: { isPlaced: true } }))
-  on('ui.close', () => ({ value: undefined }))
-  on('ui.status', () => ({ value: undefined }))
-  on('ui.toast', () => ({ value: undefined }))
-  on('clock.now', () => ({ value: Date.parse('2026-11-24T10:00:00Z') }))
-  on('clock.after', () => ({ value: undefined }))
-  on('clock.every', () => ({ value: undefined }))
-  on('session.start', (_, e) => ({ cwd: e.cwd }))
+  const { store } = stubEngine(on)
 
   await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
 

@@ -1,5 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
+import { stubEngine } from './test-engine'
+
 const RAIL = {
   plugin: 'bridge-theme',
   component: 'AbovePrompt',
@@ -15,18 +17,7 @@ const RAIL = {
 } as const
 
 test('RED ALERT on the rail turns the console red, sounds the klaxon, and stands down', async ($, on) => {
-  // Nothing sits beneath the plugin: each hook here stands for the engine.
-  const played: string[] = []
-  const looks: string[] = []
-  on('audio.play', (_, e) => {
-    played.push('asset' in e.clip ? String(e.clip.asset) : '?')
-    return { value: undefined }
-  })
-  on('theme.set', (_, e) => {
-    looks.push(String(e.colors?.label ?? ''))
-    return { value: { isDrawn: true, requestId: 'look' } }
-  })
-  on('ui.status', () => ({ value: undefined }))
+  const { played, looks } = stubEngine(on)
 
 
   for (const surface of ['desktop', 'mobile'] as const) {
@@ -48,13 +39,7 @@ test('RED ALERT on the rail turns the console red, sounds the klaxon, and stands
 })
 
 test('/red-alert toggles silently, like the button', async ($, on) => {
-  const looks: string[] = []
-  on('audio.play', () => ({ value: undefined }))
-  on('theme.set', (_, e) => {
-    looks.push(String(e.colors?.label ?? ''))
-    return { value: { isDrawn: true, requestId: 'look' } }
-  })
-  on('ui.status', () => ({ value: undefined }))
+  const { looks } = stubEngine(on)
 
   const typed = { command: 'red-alert', args: '', origin: { kind: 'composer' }, presentation: { isFullscreen: false, columns: 80 } } as const
   expect((await $.command.run(typed)).text).toBeUndefined()

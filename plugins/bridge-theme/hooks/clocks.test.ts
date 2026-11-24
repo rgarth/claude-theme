@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'claude-code/testing'
 
-import { DEFAULT_CLOCKS, parseClocks, sceneAt, stardate, timeIn } from './clocks'
+import { DEFAULT_CLOCKS, clockShift, parseClocks, stardate, timeIn } from './clocks'
 
 const at = (iso: string) => Date.parse(iso)
 const { clocks: DEFAULTS } = parseClocks(DEFAULT_CLOCKS)
@@ -31,33 +31,9 @@ describe('world clocks', () => {
     expect(stardate(at('2026-11-24T23:59:00Z'))).toBe('2026.11.24')
   })
 
-  test('the scene is filled in and told the time', async () => {
-    const scene = '<svg><style>svg { --t: 0; --shift: 0px; }</style><!-- clocks --></svg>'
-    const out = sceneAt(scene, at('2026-11-24T10:00:00Z'), { clocks: DEFAULTS })
-    expect(out.includes('<!-- clocks -->')).toBe(false)
-    expect(out.includes('--t: 0;')).toBe(false)
-    expect(out.includes('--shift: 0px;')).toBe(true)
-    expect(out.includes('>21:00<')).toBe(true)
-    expect(out.includes('SAN FRANCISCO')).toBe(true)
-  })
-
-  test('low power freezes every animation; full power leaves them running', async () => {
-    const scene = '<svg><style>svg { --t: 0; --shift: 0px; }</style></svg>'
-    const now = at('2026-11-24T10:00:00Z')
-    expect(sceneAt(scene, now, { clocks: DEFAULTS, onCall: '', isLowPower: true }).includes('animation-play-state: paused')).toBe(true)
-    expect(sceneAt(scene, now, { clocks: DEFAULTS }).includes('animation-play-state')).toBe(false)
-  })
-
-  test('with no ON CALL block the panel is hidden and the gap closed', async () => {
-    const scene = '<svg xmlns="x"><style></style><!-- oncall --></svg>'
-    const now = at('2026-11-24T10:00:00Z')
-    expect(sceneAt(scene, now, { clocks: DEFAULTS }).startsWith('<svg class="no-oncall" ')).toBe(true)
-    expect(sceneAt(scene, now, { clocks: DEFAULTS, onCall: '<text/>' }).includes('no-oncall')).toBe(false)
-  })
-
-  test('more clocks push what is below them down', async () => {
-    const scene = '<svg><style>svg { --t: 0; --shift: 0px; }</style></svg>'
-    const six = parseClocks('UTC, UTC, UTC, UTC, UTC, UTC').clocks
-    expect(sceneAt(scene, at('2026-11-24T10:00:00Z'), { clocks: six }).includes('--shift: 52px;')).toBe(true)
+  test('more clocks than fit push what is below them down; fewer close up', async () => {
+    expect(clockShift(4)).toBe(0)
+    expect(clockShift(6)).toBe(52)
+    expect(clockShift(3)).toBe(-26)
   })
 })

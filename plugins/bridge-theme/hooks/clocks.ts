@@ -5,12 +5,12 @@
 // "Sydney=Australia/Sydney, Europe/London, UTC". Local times come from the
 // engine's own time-zone data, daylight saving included.
 
+import { LAYOUT } from './scene'
+
 export type Clock = { label: string; zone: string }
 
 export const DEFAULT_CLOCKS = 'Sydney=Australia/Sydney, Bangalore=Asia/Kolkata, San Francisco=America/Los_Angeles, UTC=UTC'
 export const MAX_CLOCKS = 8
-const ROW = 26 // pixels between clock rows
-const DESIGNED_FOR = 4 // the column is laid out for four clocks; more or fewer shifts what's below
 
 const formats = new Map<string, Intl.DateTimeFormat>()
 function formatFor(zone: string): Intl.DateTimeFormat {
@@ -77,39 +77,21 @@ export function stardate(now: number): string {
 
 const escape = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
-// The SVG for the block under the STARDATE heading, right-aligned to the
-// column's edge (x = -14) with place names on the left (x = -196).
+// The SVG for the block under the STARDATE heading: values right-aligned to
+// the column's right edge, place names from its left.
 export function clocksSvg(now: number, clocks: readonly Clock[]): string {
-  let out = `<text class="date" x="-14" y="32">${stardate(now)}</text>`
+  const { colLeft, colRight, clockTop, clockRow } = LAYOUT
+  let out = `<text class="date" x="${colRight}" y="32">${stardate(now)}</text>`
   clocks.forEach(({ label, zone }, i) => {
-    const y = 66 + i * ROW
-    out += `<text class="city" x="-196" y="${y}">${escape(label)}</text>`
-    out += `<text class="time" x="-14" y="${y}">${timeIn(now, zone)}</text>`
+    const y = clockTop + i * clockRow
+    out += `<text class="city" x="${colLeft}" y="${y}">${escape(label)}</text>`
+    out += `<text class="time" x="${colRight}" y="${y}">${timeIn(now, zone)}</text>`
   })
   return out
 }
 
-export type SceneOptions = {
-  clocks: readonly Clock[]
-  // The SVG for the ON CALL block, drawn by pagerduty.ts; undefined leaves
-  // the block out and closes the gap.
-  onCall?: string
-  // Freezes every animation where it stands, so nothing repaints between the
-  // once-a-minute redraws.
-  isLowPower?: boolean
-}
-
-// The scene at a given moment: clocks filled in, and every animation told the
-// time so a redraw carries on where the last one was instead of restarting.
-export function sceneAt(scene: string, now: number, { clocks, onCall, isLowPower = false }: SceneOptions): string {
-  // Seconds since the epoch, wrapped every 10 days: a whole number of minutes,
-  // so the minute dial stays on the real second hand.
-  const seconds = ((now / 1000) % 864_000).toFixed(2)
-  const shift = (clocks.length - DESIGNED_FOR) * ROW
-  return scene
-    .replace('--t: 0; --shift: 0px;', `--t: ${seconds}; --shift: ${shift}px;`)
-    .replace('<!-- clocks -->', clocksSvg(now, clocks))
-    .replace('<!-- oncall -->', onCall ?? '')
-    .replace('<svg ', onCall === undefined ? '<svg class="no-oncall" ' : '<svg ')
-    .replace('<style>', isLowPower ? '<style>* { animation-play-state: paused !important; }' : '<style>')
+// How far everything below the clocks moves, in pixels, to make room for more
+// clocks than the column was laid out for (or to close up for fewer).
+export function clockShift(count: number): number {
+  return (count - LAYOUT.clocksFit) * LAYOUT.clockRow
 }

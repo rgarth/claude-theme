@@ -1,11 +1,17 @@
 import { describe, expect, test } from 'claude-code/testing'
 
 import { fetchEscalations, fetchOnCall, onCallSvg, shortName } from './pagerduty'
-import type { PagerDutyConfig } from './pagerduty'
+import { LAYOUT } from './scene'
+import { ACQUIRING } from './pagerduty'
+import type { Escalation, OnCallPair, PagerDutyConfig, Readings } from './pagerduty'
 
 const cfg: PagerDutyConfig = { server: 'pd', primarySchedule: 'PRI', secondarySchedule: 'SEC', incidentScope: 'teams' }
 const reply = (response: unknown) => ({ content: [{ type: 'text', text: JSON.stringify({ response, truncated: false }) }] })
 const now = Date.parse('2026-11-24T02:00:00Z')
+const ok = <T>(value: T) => ({ status: 'ok' as const, value })
+const failed = (message: string) => ({ status: 'failed' as const, message })
+const draw = (onCall: Readings['onCall'], escalations: Readings['escalations']) => onCallSvg({ onCall, escalations })
+const ADA: OnCallPair = { primary: { name: 'ADA L.', until: '07:00' } }
 
 describe('PagerDuty block', () => {
   test('names are shortened to first name and initial', async () => {
@@ -55,15 +61,29 @@ describe('PagerDuty block', () => {
   })
 
   test('the block says what state it is in', async () => {
-    expect(onCallSvg(undefined)).toContain('ACQUIRING')
-    expect(onCallSvg({ onCallError: 'x', escalationsError: 'y' })).toContain('NO SIGNAL')
-    expect(onCallSvg({ escalations: [] })).toContain('ALL CLEAR')
-    expect(onCallSvg({ onCallError: 'HooksError: $.mcp.call: no connected MCP tool "x"' })).toContain('NOT CONNECTED')
-    const many = Array.from({ length: 5 }, (_, i) => ({ number: i, service: 'S<&>', isAcknowledged: false }))
-    const svg = onCallSvg({ primary: { name: 'ADA L.', until: '07:00' }, escalations: many })
+    expect(draw(ACQUIRING, ACQUIRING)).toContain('ACQUIRING')
+    expect(draw(failed('x'), failed('y'))).toContain('NO SIGNAL')
+    expect(draw(ACQUIRING, ok([]))).toContain('ALL CLEAR')
+    expect(draw(failed('HooksError: $.mcp.call: no connected MCP tool "x"'), ACQUIRING)).toContain('NOT CONNECTED')
+    const many: Escalation[] = Array.from({ length: 5 }, (_, i) => ({ number: i, service: 'S<&>', isAcknowledged: false }))
+    const svg = draw(ok(ADA), ok(many))
     expect(svg).toContain('ESCALATIONS 5')
     expect(svg).toContain('+3 MORE')
     expect(svg).toContain('S&lt;&amp;&gt;')
     expect(svg).toContain('UNTIL 07:00 UTC')
+    expect(svg).toContain('>—<') // on-call answered, nobody on the secondary shift
+  })
+
+  test('on-call still waiting shows ACQUIRING, not empty, even once incidents are in', async () => {
+    const svg = draw(ACQUIRING, ok([]))
+    expect(svg).not.toContain('>—<')
+    expect(svg.split('ACQUIRING').length).toBe(3) // primary and secondary
+  })
+
+  test('the tallest ON CALL block fits in the room the scene leaves for it', async () => {
+    const many: Escalation[] = Array.from({ length: 9 }, (_, i) => ({ number: i, service: 'SERVICE', isAcknowledged: i % 2 === 0 }))
+    const tallest = draw(ok({ primary: { name: 'A', until: '07:00' }, secondary: { name: 'B', until: '07:00' } }), ok(many))
+    const bottom = Math.max(...[...tallest.matchAll(/ y="(\d+)"/g)].map(m => Number(m[1])))
+    expect(bottom + 24).toBeLessThanOrEqual(LAYOUT.onCallHeight) // 24: room above the next heading
   })
 })
