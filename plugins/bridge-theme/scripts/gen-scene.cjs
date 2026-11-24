@@ -160,7 +160,7 @@ text { font-family: 'Swiss 911 Ultra Compressed BT', 'Swiss911 UCm BT', 'Swiss 9
 /* the cut and its word sit halfway along the middle block */
 .midcut { x: ${X}px; y: calc(${FRAME_END / 2}% + ${(midTop - midBottom - G) / 2}px); width: ${V}px; height: ${G}px; }
 </style>
-<defs><linearGradient id="armFade" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="${C.o}" stop-opacity="1"/><stop offset="0.3" stop-color="${C.o}" stop-opacity="1"/><stop offset="1" stop-color="${C.o}" stop-opacity="0"/></linearGradient></defs>
+<defs><linearGradient id="railFade" x1="1" y1="0" x2="0" y2="0"><stop offset="0" stop-color="${C.o}" stop-opacity="1"/><stop offset="1" stop-color="${C.o}" stop-opacity="0"/></linearGradient><linearGradient id="armFade" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="${C.o}" stop-opacity="1"/><stop offset="0.3" stop-color="${C.o}" stop-opacity="1"/><stop offset="1" stop-color="${C.o}" stop-opacity="0"/></linearGradient></defs>
 <rect width="100%" height="100%" fill="#000000"/>
 <svg width="100%" height="100%" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice">
 ${Array.from({ length: LAYERS }, (_, i) => stars(60, i)).join('\n')}
@@ -180,6 +180,7 @@ ${top.labels.map(([far, , w]) => label(far - 7, w)).join('')}
 <!-- right side: rails, schematic, chart, telemetry -->
 <svg x="100%" y="0" width="1" height="1" overflow="visible">
 ${railRight(Y, A, [[186, C.o]])}
+<rect x="${-10 - 186 - 240}" y="${Y}" width="241" height="${A}" fill="url(#railFade)"/>
 ${railRight(Y + A + 6, 22, [[124, C.l], [58, C.pe]], true)}
 <text class="sub" x="-14" y="${CLOCK_LABEL}" text-anchor="end">STARDATE</text>
 <g transform="translate(0 ${CLOCK_LABEL})"><!-- clocks --></g>
