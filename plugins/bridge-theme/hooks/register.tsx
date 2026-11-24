@@ -99,6 +99,15 @@ const LOOK: ThemeSetArgs = {
 // The latest PagerDuty readings; the backdrop draws from these.
 let state: PagerDutyState | undefined
 
+// Low power: every animation frozen. Kept in the mod's store between sessions.
+let isLowPower = false
+
+async function setLowPower($: EngineInterface, value: boolean): Promise<void> {
+  isLowPower = value
+  await $.store.set('isLowPower', value)
+  $.ui.invalidate('ui.render')
+}
+
 // The PagerDuty server starts with the session and takes a few seconds to
 // connect; until it does, a call finds no tool. That isn't a failure: stay on
 // ACQUIRING and try again shortly.
@@ -168,6 +177,7 @@ export const register: Register = (on, options) => {
     }
     // Say why only while nothing draws the look; clear any older notice.
     $.ui.status(set.isDrawn ? undefined : set.reason)
+    isLowPower = (await $.store.get('isLowPower')) === true
 
     // Redraw the backdrop on each new minute so the clocks stay current.
     const now = await $.clock.now()
@@ -180,6 +190,7 @@ export const register: Register = (on, options) => {
     // PagerDuty, through the user's own MCP server: on-call every 15 minutes,
     // open high-urgency incidents every 5. /oncall reads both at once.
     await $.command.register({ name: 'oncall', description: 'Refresh the ON CALL panel now and show what PagerDuty returned' })
+    await $.command.register({ name: 'lowpower', description: 'Freeze or restart the bridge backdrop animations' })
     if (isConfigured) {
       void readOnCall($, pd)
       void readEscalations($, pd)
@@ -190,7 +201,11 @@ export const register: Register = (on, options) => {
     return next(e)
   })
 
-  // A console rail fixed above the message box, in front of the chat.
+  on('command.run', { command: 'lowpower' }, async $ => {
+    await setLowPower($, !isLowPower)
+    return { text: isLowPower ? 'Low power: backdrop animations frozen.' : 'Full power: backdrop animations running.' }
+  })
+
   // /oncall: refresh now and say what came back (or why it failed).
   on('command.run', { command: 'oncall' }, async $ => {
     if (!isConfigured) return { text: 'ON CALL is not configured: set primarySchedule and secondarySchedule under pluginConfigs in ~/.claude/settings.json.' }
@@ -216,8 +231,18 @@ export const register: Register = (on, options) => {
     if ((e.surface !== 'desktop' && e.surface !== 'mobile') || e.props.hasSurvey) {
       return next(e)
     }
-    const { Svg } = $.ui.resolve(e)
-    return <Svg source={BAND} alt="An orange console rail fading out to the right" height={BAND_HEIGHT} />
+    // A console rail fixed above the message box, with the power toggle at its end.
+    const { Box, Button, Svg } = $.ui.resolve(e)
+    return (
+      <Box flexDirection="row" alignItems="center">
+        <Box flexGrow={1}>
+          <Svg source={BAND} alt="An orange console rail fading out to the right" height={BAND_HEIGHT} />
+        </Box>
+        <Button key="power" plain dimColor={!isLowPower} onPress={() => setLowPower($, !isLowPower)}>
+          {isLowPower ? '◐ LOW POWER' : '● FULL POWER'}
+        </Button>
+      </Box>
+    )
   })
 
   on('ui.render', { component: 'Backdrop' }, async ($, e, next) => {
@@ -225,7 +250,7 @@ export const register: Register = (on, options) => {
       return next(e)
     }
     const { Svg } = $.ui.resolve(e)
-    const source = sceneAt(SCENE, await $.clock.now(), onCallSvg(state, isConfigured))
+    const source = sceneAt(SCENE, await $.clock.now(), onCallSvg(state, isConfigured), isLowPower)
     return <Svg source={source} alt="Pitch-black console with flat pastel rails, world clocks, on-call status and a minute dial" isInteractive />
   })
 }

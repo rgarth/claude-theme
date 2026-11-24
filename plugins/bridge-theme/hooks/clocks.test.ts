@@ -46,4 +46,11 @@ describe('world clocks', () => {
     expect(out.includes('>21:00<')).toBe(true)
     expect(out.includes('SAN FRANCISCO')).toBe(true)
   })
+
+  test('low power freezes every animation; full power leaves them running', async () => {
+    const scene = '<svg><style>svg { --t: 0; }</style></svg>'
+    const now = at('2026-11-24T10:00:00Z')
+    expect(sceneAt(scene, now, '', true).includes('animation-play-state: paused')).toBe(true)
+    expect(sceneAt(scene, now).includes('animation-play-state')).toBe(false)
+  })
 })

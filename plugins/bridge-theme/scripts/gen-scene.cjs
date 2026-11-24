@@ -5,12 +5,18 @@ const C = { o: '#ff9900', pe: '#ffcc99', l: '#cc99cc', pw: '#9999ff', co: '#cc66
 const G = 4 // black gap between segments
 
 // Stars live in their own 1600x1000 box that slices to fill the window.
-function stars(n, rmin, rmax, cls) {
-  const W = 1600, H = 1000, pts = []
-  for (let i = 0; i < n; i++) pts.push([rnd() * W, rnd() * H, rmin + rnd() * (rmax - rmin)])
+// Flying forward: LAYERS sheets of stars, each growing out from the centre
+// and fading in then out over ZOOM seconds, staggered so one is always arriving.
+const LAYERS = 5, ZOOM = 40 // 864000 (the --t wrap) is a whole number of ZOOMs
+function stars(n, i) {
+  const W = 1600, H = 1000
   let out = ''
-  for (const dx of [0, W]) for (const [x, y, r] of pts) out += `<circle cx="${(x + dx).toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(2)}"/>`
-  return `<g class="${cls}">${out}</g>`
+  for (let k = 0; k < n; k++) {
+    const r = 0.35 + rnd() * 0.55, tint = rnd() < 0.3 ? '#ffe9d6' : '#ffffff'
+    out += `<circle cx="${(rnd() * W).toFixed(1)}" cy="${(rnd() * H).toFixed(1)}" r="${r.toFixed(2)}" fill="${tint}"/>`
+  }
+  const delay = -(i * ZOOM) / LAYERS
+  return `<g class="warp" style="animation-delay: calc(${delay}s - var(--t) * 1s)">${out}</g>`
 }
 const rect = (x, y, w, h, col, cls) => `<path d="M${x} ${y}H${x + w}V${y + h}H${x}Z" fill="${col}"${cls ? ` class="${cls}"` : ''}/>`
 const capR = (x, y, w, h, col, cls) => { const r = h / 2; return `<path d="M${x} ${y}H${x + w - r}A${r} ${r} 0 0 1 ${x + w - r} ${y + h}H${x}Z" fill="${col}"${cls ? ` class="${cls}"` : ''}/>` }
@@ -98,10 +104,10 @@ function bigChart(x, base, n, w, gap, maxH) {
   }
   return out
 }
-function railRight(y, h, items) { // flush to the right edge, pill cap on the outside
+function railRight(y, h, items, isPill = false) { // flush to the right edge, pill cap on the outside (and the inside too when isPill)
   const total = items.reduce((a, [w]) => a + w + G, -G)
   let cx = -10 - total, out = ''
-  items.forEach(([w, col, cls], i) => { out += (i === items.length - 1 ? capR : rect)(cx, y, w, h, col, cls); cx += w + G })
+  items.forEach(([w, col, cls], i) => { out += (i === items.length - 1 ? capR : i === 0 && isPill ? capL : rect)(cx, y, w, h, col, cls); cx += w + G })
   return out
 }
 
@@ -117,9 +123,8 @@ const midTop = top.end, midBottom = bot.end // px from top, px from bottom
 const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
 <style>
 svg { --t: 0; }
-.s1 { fill: #ffffff; opacity: 0.55; animation: drift 1200s linear calc(0s - var(--t) * 1s) infinite; }
-.s2 { fill: #ffe9d6; opacity: 0.7; animation: drift 700s linear calc(0s - var(--t) * 1s) infinite; }
-@keyframes drift { from { transform: translateX(0px); } to { transform: translateX(-1600px); } }
+.warp { transform-box: view-box; transform-origin: 800px 500px; opacity: 0; animation: warp ${ZOOM}s cubic-bezier(0.55, 0, 1, 1) infinite; }
+@keyframes warp { 0% { transform: scale(0.35); opacity: 0; } 15% { opacity: 0.75; } 80% { opacity: 0.75; } 100% { transform: scale(2.2); opacity: 0; } }
 text { font-family: 'Swiss 911 Ultra Compressed BT', 'Swiss911 UCm BT', 'Swiss 911 Ultra Compressed', 'DIN Condensed', 'Arial Narrow', sans-serif; font-stretch: condensed; font-size: 11px; letter-spacing: 1px; }
 .city { fill: ${C.l}; font-size: 16px; letter-spacing: 1px; }
 .time { fill: #ffffff; font-size: 22px; letter-spacing: 0.5px; text-anchor: end; }
@@ -153,8 +158,7 @@ text { font-family: 'Swiss 911 Ultra Compressed BT', 'Swiss911 UCm BT', 'Swiss 9
 <defs><linearGradient id="armFade" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="${C.o}" stop-opacity="1"/><stop offset="0.3" stop-color="${C.o}" stop-opacity="1"/><stop offset="1" stop-color="${C.o}" stop-opacity="0"/></linearGradient></defs>
 <rect width="100%" height="100%" fill="#000000"/>
 <svg width="100%" height="100%" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice">
-${stars(110, 0.5, 0.9, 's1')}
-${stars(40, 0.9, 1.5, 's2')}
+${Array.from({ length: LAYERS }, (_, i) => stars(60, i)).join('\n')}
 </svg>
 <!-- left frame: top elbow, full-height bar, bottom elbow -->
 ${top.out}
@@ -170,8 +174,8 @@ ${top.labels.map(([far, , w]) => label(far - 7, w)).join('')}
 <text class="head" x="${X + V + r + 8}" y="${Y + A + 36}">NCC-1701</text>
 <!-- right side: rails, schematic, chart, telemetry -->
 <svg x="100%" y="0" width="1" height="1" overflow="visible">
-${railRight(Y, 22, [[50, C.pw], [132, C.o]])}
-${railRight(Y + 28, 8, [[124, C.l], [58, C.pe]])}
+${railRight(Y, A, [[186, C.o]])}
+${railRight(Y + A + 6, 22, [[124, C.l], [58, C.pe]], true)}
 <text class="sub" x="-14" y="${CLOCK_LABEL}" text-anchor="end">STARDATE</text>
 <g transform="translate(0 ${CLOCK_LABEL})"><!-- clocks --></g>
 <text class="sub" x="-14" y="${ONCALL_LABEL}" text-anchor="end">ON CALL</text>
