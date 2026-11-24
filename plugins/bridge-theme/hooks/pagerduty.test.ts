@@ -55,13 +55,12 @@ describe('PagerDuty block', () => {
   })
 
   test('the block says what state it is in', async () => {
-    expect(onCallSvg(undefined, false)).toContain('NOT CONFIGURED')
-    expect(onCallSvg(undefined, true)).toContain('ACQUIRING')
-    expect(onCallSvg({ onCallError: 'x', escalationsError: 'y' }, true)).toContain('NO SIGNAL')
-    expect(onCallSvg({ escalations: [] }, true)).toContain('ALL CLEAR')
-    expect(onCallSvg({ onCallError: 'HooksError: $.mcp.call: no connected MCP tool "x"' }, true)).toContain('NOT CONNECTED')
+    expect(onCallSvg(undefined)).toContain('ACQUIRING')
+    expect(onCallSvg({ onCallError: 'x', escalationsError: 'y' })).toContain('NO SIGNAL')
+    expect(onCallSvg({ escalations: [] })).toContain('ALL CLEAR')
+    expect(onCallSvg({ onCallError: 'HooksError: $.mcp.call: no connected MCP tool "x"' })).toContain('NOT CONNECTED')
     const many = Array.from({ length: 5 }, (_, i) => ({ number: i, service: 'S<&>', isAcknowledged: false }))
-    const svg = onCallSvg({ primary: { name: 'ADA L.', until: '07:00' }, escalations: many }, true)
+    const svg = onCallSvg({ primary: { name: 'ADA L.', until: '07:00' }, escalations: many })
     expect(svg).toContain('ESCALATIONS 5')
     expect(svg).toContain('+3 MORE')
     expect(svg).toContain('S&lt;&amp;&gt;')

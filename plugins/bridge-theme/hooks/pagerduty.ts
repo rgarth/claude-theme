@@ -93,10 +93,7 @@ const cut = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` 
 
 // The SVG under the ON CALL heading, right-aligned to the column (x = -14),
 // labels on the left (x = -196).
-export function onCallSvg(state: PagerDutyState | undefined, isConfigured: boolean): string {
-  if (!isConfigured) {
-    return '<text class="clear" x="-14" y="30">NOT CONFIGURED</text>'
-  }
+export function onCallSvg(state: PagerDutyState | undefined): string {
   let out = ''
   const row = (label: string, who: OnCall | undefined, y: number) => {
     out += `<text class="city" x="-196" y="${y}">${label}</text>`

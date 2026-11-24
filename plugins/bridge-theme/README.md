@@ -1,22 +1,19 @@
 # Bridge Theme
 
-An original console look for the Claude desktop and mobile apps, in the spirit of early-90s optimistic sci-fi terminals.
+A sci-fi starship console theme for the Claude desktop and mobile apps. It's always dark, and the terminal and editors aren't themed.
 
-- **Pitch black, 100% flat:** no glow, shadows, gradients or frosted glass. Accents are tangerine, peach, lilac, periwinkle and coral.
-- **Your messages** are solid pastel blocks with black text, rounded on one side, cycling through four colours. **Claude's replies** sit on black inside a small lilac elbow (bar down the left, arm along the top). **Tool rows** are periwinkle blocks with black text. Headings are bold and tangerine.
-- **Left frame:** a wide segmented console bar just right of the app's sidebar, labelled BRIDGE, SENSORS, OVERRIDE, STATUS, SYSTEMS, POWER, COMMS and AUX 07. It sweeps through a rounded elbow into a thin top arm that fades out, under an NCC-1701 header, and ends three-quarters of the way down on a square block.
-- **Right column:** a thin tangerine rail over a lilac and peach pill; a STARDATE block with today's UTC date and live clocks for Sydney, Bangalore, San Francisco and UTC (redrawn each minute); an ON CALL block with the primary and secondary on-call and open high-urgency incidents from PagerDuty; a SENSOR ARRAY dial that turns once a minute with a dot that beats each second; and a bracketed bar graph whose bars slowly rise and fall.
-- **Stars:** a faint star-field that streams out from the centre, as if flying forward.
-- **Console rail:** a thin, square-cornered tangerine rail that fades out to the right, in the band just above the message box. It stays in front of the chat while messages scroll behind it, and ends in a **WARP / IMPULSE** power toggle.
-- **Impulse (low power):** the toggle (or `/lowpower`) freezes every backdrop animation where it stands, so the app stops repainting the backdrop each frame; clocks and on-call still update. The choice is remembered between sessions.
-- **Font:** backdrop labels ask for Swiss 911 Ultra Compressed and fall back to DIN Condensed, which ships with macOS.
-- Always dark. A light variant is built in: remove `overrideColorScheme: 'dark'` in `hooks/register.tsx`.
+## Commands
 
-## PagerDuty on-call (optional)
+- **`/lowpower`**, or the **WARP / IMPULSE** button above the message box, freezes the backdrop animations to save CPU. The clocks keep updating. The setting is remembered.
+- **`/bridge-crew`** refreshes the PagerDuty panel. **`/bridge-crew off`** hides it and stops all PagerDuty lookups; **`/bridge-crew on`** brings it back.
 
-The ON CALL block reads PagerDuty through **your own** PagerDuty MCP server, so no token or account detail lives in this plugin. On-call is checked every 15 minutes (overrides are already applied by PagerDuty), and open high-urgency incidents every 5.
+## PagerDuty panel
 
-Set it up in `~/.claude/settings.json` (use `bridge-theme@inline` instead of, or as well as, `bridge-theme` if you load the plugin from a folder):
+The right-hand column can show the primary and secondary on-call and any open high-urgency incidents. It reads them through **your own PagerDuty MCP server**, so no token lives in this plugin.
+
+It's off until you give it schedule IDs. If you don't use PagerDuty, do nothing: the panel stays hidden and nothing is called.
+
+To turn it on, add the PagerDuty MCP server to Claude Code, then add this to `~/.claude/settings.json`:
 
 ```json
 "pluginConfigs": {
@@ -31,14 +28,16 @@ Set it up in `~/.claude/settings.json` (use `bridge-theme@inline` instead of, or
 }
 ```
 
-`pagerdutyServer` is the server's name as `claude mcp list` shows it; the schedule IDs are in each schedule's PagerDuty URL; `incidentScope` is `teams`, `all` or `assigned`. With no schedule IDs the block reads NOT CONFIGURED. It shows ACQUIRING while the PagerDuty server is still connecting at the start of a session, NOT CONNECTED if the server never connects in that session (for example, it was added after the session started), and NO SIGNAL if a lookup fails. Type `/oncall` to refresh it at once and see exactly what PagerDuty returned. Overrides can't be flagged as overrides for legacy (v2) schedules, because the PagerDuty MCP server lists overrides only for shift-based (v3) ones.
+- **`pagerdutyServer`** is the MCP server's name, as `claude mcp list` shows it.
+- **`primarySchedule` and `secondarySchedule`** are the schedule IDs, which are in each schedule's PagerDuty URL.
+- **`incidentScope`** is `teams`, `all` or `assigned`.
+
+If you load the plugin from a folder, the key is `bridge-theme@inline`. On-call is checked every 15 minutes and incidents every 5.
 
 ## Editing the backdrop
 
-`hooks/scene.ts` is generated. Change sizes and colours in `scripts/gen-scene.cjs`, then run:
+`hooks/scene.ts` is generated. Edit `scripts/gen-scene.cjs`, then run `node scripts/gen-scene.cjs hooks/scene.ts`.
 
-    node scripts/gen-scene.cjs hooks/scene.ts
+## License
 
-## Third-party files
-
-`hooks/make-colors.js` and `hooks/make-colors.d.ts` are copied unchanged from the theme kit that ships with Claude Code's plugin-authoring tools. They are not covered by this repository's MIT license.
+MIT. `hooks/make-colors.js` and `hooks/make-colors.d.ts` are copied from Claude Code's plugin-authoring kit and aren't covered by it.

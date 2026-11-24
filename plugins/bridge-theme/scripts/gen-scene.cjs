@@ -124,6 +124,9 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
 <style>
 svg { --t: 0; }
 .warp { transform-box: view-box; transform-origin: 800px 500px; opacity: 0; animation: warp ${ZOOM}s cubic-bezier(0.55, 0, 1, 1) infinite; }
+/* with the ON CALL block off, the sensor array and graph move up into its place */
+.no-oncall .oncall { display: none; }
+.no-oncall .lower { transform: translateY(-${SENSOR_LABEL - ONCALL_LABEL}px); }
 @keyframes warp { 0% { transform: scale(0.35); opacity: 0; } 15% { opacity: 0.75; } 80% { opacity: 0.75; } 100% { transform: scale(2.2); opacity: 0; } }
 text { font-family: 'Swiss 911 Ultra Compressed BT', 'Swiss911 UCm BT', 'Swiss 911 Ultra Compressed', 'DIN Condensed', 'Arial Narrow', sans-serif; font-stretch: condensed; font-size: 11px; letter-spacing: 1px; }
 .city { fill: ${C.l}; font-size: 16px; letter-spacing: 1px; }
@@ -178,12 +181,14 @@ ${railRight(Y, A, [[186, C.o]])}
 ${railRight(Y + A + 6, 22, [[124, C.l], [58, C.pe]], true)}
 <text class="sub" x="-14" y="${CLOCK_LABEL}" text-anchor="end">STARDATE</text>
 <g transform="translate(0 ${CLOCK_LABEL})"><!-- clocks --></g>
-<text class="sub" x="-14" y="${ONCALL_LABEL}" text-anchor="end">ON CALL</text>
-<g transform="translate(0 ${ONCALL_LABEL})"><!-- oncall --></g>
+<g class="oncall"><text class="sub" x="-14" y="${ONCALL_LABEL}" text-anchor="end">ON CALL</text>
+<g transform="translate(0 ${ONCALL_LABEL})"><!-- oncall --></g></g>
+<g class="lower">
 <text class="sub" x="-14" y="${SENSOR_LABEL}" text-anchor="end">SENSOR ARRAY</text>
 <g class="schem"><circle cx="${COL_MID}" cy="${DIAL}" r="48"/><circle cx="${COL_MID}" cy="${DIAL}" r="30"/><path d="M${COL_MID - 56} ${DIAL}H${COL_MID + 56}M${COL_MID} ${DIAL - 56}V${DIAL + 56}"/></g>
 <g class="spin"><path class="schem" d="M${COL_MID - 48} ${DIAL}A48 48 0 0 1 ${COL_MID} ${DIAL - 48}" stroke="${C.o}"/><circle class="blip" cx="${COL_MID}" cy="${DIAL - 48}" r="4" fill="${C.pe}"/></g>
 ${bigChart(-196, CHART_BASE, 9, 14, 6, 110)}
+</g>
 </svg>
 <svg x="100%" y="100%" width="1" height="1" overflow="visible">
 ${railRight(-32, 22, [[30, C.co], [110, C.o], [24, C.pe, 'blink2'], [140, C.l]])}

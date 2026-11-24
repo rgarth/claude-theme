@@ -53,4 +53,11 @@ describe('world clocks', () => {
     expect(sceneAt(scene, now, '', true).includes('animation-play-state: paused')).toBe(true)
     expect(sceneAt(scene, now).includes('animation-play-state')).toBe(false)
   })
+
+  test('with no ON CALL block the panel is hidden and the gap closed', async () => {
+    const scene = '<svg xmlns="x"><style></style><!-- oncall --></svg>'
+    const now = at('2026-11-24T10:00:00Z')
+    expect(sceneAt(scene, now).startsWith('<svg class="no-oncall" ')).toBe(true)
+    expect(sceneAt(scene, now, '<text/>').includes('no-oncall')).toBe(false)
+  })
 })

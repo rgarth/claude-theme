@@ -65,16 +65,18 @@ export function clocksSvg(now: number): string {
 
 // The scene at a given moment: clocks filled in, and every animation told the
 // time so a redraw carries on where the last one was instead of restarting.
-// `onCall` is the SVG for the ON CALL block, drawn by pagerduty.ts.
+// `onCall` is the SVG for the ON CALL block, drawn by pagerduty.ts;
+// `onCall` undefined leaves the ON CALL block out and closes the gap.
 // `isLowPower` freezes every animation where it stands, so nothing repaints
 // between the once-a-minute redraws.
-export function sceneAt(scene: string, now: number, onCall = '', isLowPower = false): string {
+export function sceneAt(scene: string, now: number, onCall?: string, isLowPower = false): string {
   // Seconds since the epoch, wrapped every 10 days: a whole number of minutes,
   // so the minute dial stays on the real second hand.
   const seconds = ((now / 1000) % 864_000).toFixed(2)
   return scene
     .replace('--t: 0;', `--t: ${seconds};`)
     .replace('<!-- clocks -->', clocksSvg(now))
-    .replace('<!-- oncall -->', onCall)
+    .replace('<!-- oncall -->', onCall ?? '')
+    .replace('<svg ', onCall === undefined ? '<svg class="no-oncall" ' : '<svg ')
     .replace('<style>', isLowPower ? '<style>* { animation-play-state: paused !important; }' : '<style>')
 }

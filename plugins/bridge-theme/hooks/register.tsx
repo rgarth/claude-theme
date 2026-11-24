@@ -102,6 +102,9 @@ let state: PagerDutyState | undefined
 // Low power: every animation frozen. Kept in the mod's store between sessions.
 let isLowPower = false
 
+// ON CALL panel switched off with `/bridge-crew off`: hidden, and PagerDuty left alone.
+let isOnCallOff = false
+
 async function setLowPower($: EngineInterface, value: boolean): Promise<void> {
   isLowPower = value
   await $.store.set('isLowPower', value)
@@ -178,6 +181,7 @@ export const register: Register = (on, options) => {
     // Say why only while nothing draws the look; clear any older notice.
     $.ui.status(set.isDrawn ? undefined : set.reason)
     isLowPower = (await $.store.get('isLowPower')) === true
+    isOnCallOff = (await $.store.get('isOnCallOff')) === true
 
     // Redraw the backdrop on each new minute so the clocks stay current.
     const now = await $.clock.now()
@@ -188,14 +192,16 @@ export const register: Register = (on, options) => {
     })
 
     // PagerDuty, through the user's own MCP server: on-call every 15 minutes,
-    // open high-urgency incidents every 5. /oncall reads both at once.
-    await $.command.register({ name: 'oncall', description: 'Refresh the ON CALL panel now and show what PagerDuty returned' })
+    // open high-urgency incidents every 5, unless the panel is off.
+    await $.command.register({ name: 'bridge-crew', description: 'Refresh the ON CALL panel; "/bridge-crew off" hides it and stops PagerDuty lookups, "/bridge-crew on" brings it back' })
     await $.command.register({ name: 'lowpower', description: 'Switch the bridge backdrop between warp (animated) and impulse (frozen, low power)' })
     if (isConfigured) {
-      void readOnCall($, pd)
-      void readEscalations($, pd)
-      $.clock.every(ON_CALL_EVERY, () => void readOnCall($, pd))
-      $.clock.every(ESCALATIONS_EVERY, () => void readEscalations($, pd))
+      if (!isOnCallOff) {
+        void readOnCall($, pd)
+        void readEscalations($, pd)
+      }
+      $.clock.every(ON_CALL_EVERY, () => void (isOnCallOff || readOnCall($, pd)))
+      $.clock.every(ESCALATIONS_EVERY, () => void (isOnCallOff || readEscalations($, pd)))
     }
 
     return next(e)
@@ -206,9 +212,27 @@ export const register: Register = (on, options) => {
     return { text: isLowPower ? 'Impulse power: backdrop animations frozen.' : 'Warp power: backdrop animations running.' }
   })
 
-  // /oncall: refresh now and say what came back (or why it failed).
-  on('command.run', { command: 'oncall' }, async $ => {
-    if (!isConfigured) return { text: 'ON CALL is not configured: set primarySchedule and secondarySchedule under pluginConfigs in ~/.claude/settings.json.' }
+  // /bridge-crew: refresh now and say what came back (or why it failed).
+  // /bridge-crew off | on: hide the panel and stop lookups, or bring it back.
+  on('command.run', { command: 'bridge-crew' }, async ($, e) => {
+    const NOT_SET = 'The ON CALL panel needs PagerDuty schedule IDs: see "PagerDuty" in the bridge-theme README.'
+    const arg = e.args.trim().toLowerCase()
+    if (arg === 'off') {
+      isOnCallOff = true
+      await $.store.set('isOnCallOff', true)
+      $.ui.invalidate('ui.render')
+      return { text: 'ON CALL panel off; no more PagerDuty lookups. "/bridge-crew on" brings it back.' }
+    }
+    if (arg === 'on') {
+      isOnCallOff = false
+      await $.store.set('isOnCallOff', false)
+      $.ui.invalidate('ui.render')
+      if (!isConfigured) return { text: NOT_SET }
+    } else if (arg !== '') {
+      return { text: 'Use /bridge-crew to refresh, /bridge-crew off to hide the panel, or /bridge-crew on to show it.' }
+    }
+    if (!isConfigured) return { text: NOT_SET }
+    if (isOnCallOff) return { text: 'The ON CALL panel is off. "/bridge-crew on" brings it back.' }
     // A command must answer within 10 seconds: give the lookups 7, and if the
     // server isn't connected yet, leave the panel retrying in the background.
     await Promise.race([Promise.all([readOnCall($, pd, RETRIES), readEscalations($, pd, RETRIES)]), $.clock.sleep(7_000)])
@@ -250,7 +274,7 @@ export const register: Register = (on, options) => {
       return next(e)
     }
     const { Svg } = $.ui.resolve(e)
-    const source = sceneAt(SCENE, await $.clock.now(), onCallSvg(state, isConfigured), isLowPower)
+    const source = sceneAt(SCENE, await $.clock.now(), isConfigured && !isOnCallOff ? onCallSvg(state) : undefined, isLowPower)
     return <Svg source={source} alt="Pitch-black console with flat pastel rails, world clocks, on-call status and a minute dial" isInteractive />
   })
 }
