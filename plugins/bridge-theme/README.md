@@ -4,6 +4,7 @@ A sci-fi starship console theme for the Claude desktop and mobile apps. It's alw
 
 ## Commands
 
+- **`/red-alert`**, or the **▲ RED ALERT** button above the message box, sounds a klaxon and turns the whole console red until you stand down.
 - **`/lowpower`**, or the **WARP / IMPULSE** button above the message box, freezes the backdrop animations to save CPU. The clocks keep updating. The setting is remembered.
 - **`/star-date`** opens a pane for editing the world clocks.
 - **`/bridge-crew`** refreshes the PagerDuty panel. **`/bridge-crew off`** hides it and stops all PagerDuty lookups; **`/bridge-crew on`** brings it back.
@@ -53,7 +54,7 @@ If you load the plugin from a folder, the key is `bridge-theme@inline`. On-call 
 
 ## Editing the backdrop
 
-`hooks/scene.ts` is generated. Edit `scripts/gen-scene.cjs`, then run `node scripts/gen-scene.cjs hooks/scene.ts`.
+`hooks/scene.ts` is generated. Edit `scripts/gen-scene.cjs`, then run `node scripts/gen-scene.cjs hooks/scene.ts`. The klaxon is synthesised by `node scripts/gen-klaxon.cjs sounds/klaxon.wav`.
 
 ## License
 

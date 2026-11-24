@@ -1,6 +1,7 @@
 import type { EngineInterface, Register, ThemeMessageRule, ThemeSetArgs } from 'claude-code'
 
 import { makeColors } from './make-colors.js'
+import { RED, redAlert, redAlertScene } from './alert'
 import { BAND, BAND_HEIGHT } from './band'
 import { DEFAULT_CLOCKS, MAX_CLOCKS, formatClocks, moveClock, parseClocks, sceneAt, timeIn } from './clocks'
 import type { Clock } from './clocks'
@@ -41,13 +42,36 @@ const { theme, problems } = makeColors({
   },
 })
 
-const BASE: ThemeSetArgs = {
-  colors: theme,
+// Red alert: the same console in deep reds on a faintly red-black ground.
+const { theme: redTheme } = makeColors({
+  label: 'Bridge Theme: Red Alert',
+  roles: { accent: RED['#ff9900']!, danger: RED['#cc6666']!, success: '#99cc99', warning: RED['#ffcc99']!, pro: RED['#cc99cc']! },
+  dark: {
+    gray: {
+      anchors: {
+        'surface-0': '#0a0000',
+        'surface-1': '#140304',
+        'surface-2': '#1c0607',
+        'surface-3': '#25090a',
+        'text-primary': '#ffe8e4',
+        'text-secondary': '#e6bdb7',
+        'text-muted': '#bf8f88',
+      },
+    },
+  },
+})
+
+type Palette = { o: `#${string}`; pe: `#${string}`; l: `#${string}`; pw: `#${string}` }
+const PASTEL: Palette = { o: '#ff9900', pe: '#ffcc99', l: '#cc99cc', pw: '#9999ff' }
+const ALARM: Palette = { o: RED['#ff9900']!, pe: RED['#ffcc99']!, l: RED['#cc99cc']!, pw: RED['#cc6666']! }
+
+const baseOf = (colors: ThemeSetArgs['colors']): ThemeSetArgs => ({
+  colors,
   backdrop: { scene: 'deep-bridge-stars', glass: false },
   overrideColorScheme: 'dark',
-}
+})
 
-// Flat pastel block with black words, rounded on one side only.
+// Flat block with black words, rounded on one side only.
 const block = (backgroundColor: `#${string}`): ThemeMessageRule => ({
   backgroundColor,
   color: '#000000',
@@ -57,9 +81,9 @@ const block = (backgroundColor: `#${string}`): ThemeMessageRule => ({
   shadow: 'none',
 })
 
-// Claude's reply: black, framed by a small lilac elbow that sweeps from a
-// bar down the left edge into an arm along the top.
-const sideBar: ThemeMessageRule = {
+// Claude's reply: black, framed by a small elbow that sweeps from a bar down
+// the left edge into an arm along the top.
+const sideBar = (color: `#${string}`): ThemeMessageRule => ({
   backgroundColor: '#000000',
   shadow: 'none',
   paddingTop: 30,
@@ -74,28 +98,59 @@ const sideBar: ThemeMessageRule = {
         { d: 'M0 0H72V72H0Z', color: '#000000' },
         // 4-point bar down the left, 16-point arm along the top,
         // big rounded outer corner, softer inner curve.
-        { d: 'M0 20A20 20 0 0 1 20 0H72V16H16A12 12 0 0 0 4 28V72H0Z', color: '#cc99cc' },
+        { d: 'M0 20A20 20 0 0 1 20 0H72V16H16A12 12 0 0 0 4 28V72H0Z', color },
       ],
     },
   },
-}
+})
 
-const LOOK: ThemeSetArgs = {
-  ...BASE,
+const lookOf = (colors: ThemeSetArgs['colors'], p: Palette): ThemeSetArgs => ({
+  ...baseOf(colors),
   style: {
-    Heading: { fontFamily: ['sans'], fontWeight: 'bold', letterSpacing: 2, color: '#ff9900' },
-    UserMessage: [block('#ff9900'), block('#ffcc99'), block('#9999ff'), block('#cc99cc')],
-    AssistantMessage: sideBar,
+    Heading: { fontFamily: ['sans'], fontWeight: 'bold', letterSpacing: 2, color: p.o },
+    UserMessage: [block(p.o), block(p.pe), block(p.pw), block(p.l)],
+    AssistantMessage: sideBar(p.l),
     ToolUse: {
       fontFamily: ['code'],
       color: '#000000',
-      backgroundColor: '#9999ff',
+      backgroundColor: p.pw,
       radius: [14, 4, 4, 14],
       paddingX: 12,
       shadow: 'none',
     },
   },
+})
+
+const BASE = baseOf(theme)
+const LOOK = lookOf(theme, PASTEL)
+const RED_BASE = baseOf(redTheme)
+const RED_LOOK = lookOf(redTheme, ALARM)
+
+// Sets the console's look, falling back to colours alone if the styled look is refused.
+async function applyLook($: EngineInterface, isRed: boolean): Promise<void> {
+  let set
+  try {
+    set = await $.theme.set(isRed ? RED_LOOK : LOOK)
+  } catch (error) {
+    $.ui.log(String(error))
+    set = await $.theme.set(isRed ? RED_BASE : BASE)
+  }
+  // Say why only while nothing draws the look; clear any older notice.
+  $.ui.status(set.isDrawn ? undefined : set.reason)
 }
+
+// Red alert: on for this session only, with the klaxon when it goes on.
+let isRedAlert = false
+
+async function setRedAlert($: EngineInterface, value: boolean): Promise<void> {
+  isRedAlert = value
+  if (value) {
+    void $.audio.play({ asset: 'sounds/klaxon.wav' }).catch(error => $.ui.log(`bridge-theme: klaxon: ${String(error)}`))
+  }
+  await applyLook($, value)
+  $.ui.invalidate('ui.render')
+}
+
 
 // The latest PagerDuty readings; the backdrop draws from these.
 let state: PagerDutyState | undefined
@@ -208,19 +263,10 @@ export const register: Register = (on, options) => {
       $.ui.toast(unpainted)
     }
 
-    let set
-    try {
-      set = await $.theme.set(LOOK)
-    } catch (error) {
-      $.ui.log(String(error))
-      set = await $.theme.set(BASE)
-    }
+    await applyLook($, isRedAlert)
     if (clockProblems.length > 0) {
       $.ui.toast(`bridge-theme clocks: ${clockProblems.join('; ')}`)
     }
-
-    // Say why only while nothing draws the look; clear any older notice.
-    $.ui.status(set.isDrawn ? undefined : set.reason)
     isLowPower = (await $.store.get('isLowPower')) === true
     isOnCallOff = (await $.store.get('isOnCallOff')) === true
     const edited = await $.store.get('clocks')
@@ -238,6 +284,7 @@ export const register: Register = (on, options) => {
     // open high-urgency incidents every 5, unless the panel is off.
     await $.command.register({ name: 'bridge-crew', description: 'Refresh the ON CALL panel; "/bridge-crew off" hides it and stops PagerDuty lookups, "/bridge-crew on" brings it back' })
     await $.command.register({ name: 'star-date', description: 'Add, remove and reorder the world clocks' })
+    await $.command.register({ name: 'red-alert', description: 'Sound the klaxon and turn the console red; again to stand down' })
     await $.command.register({ name: 'lowpower', description: 'Switch the bridge backdrop between warp (animated) and impulse (frozen, low power)' })
     if (isConfigured) {
       if (!isOnCallOff) {
@@ -295,6 +342,12 @@ export const register: Register = (on, options) => {
     )
   })
 
+  on('command.run', { command: 'red-alert' }, async $ => {
+    // Silent, like the rail's button: the console turning red says it all.
+    await setRedAlert($, !isRedAlert)
+    return {}
+  })
+
   on('command.run', { command: 'lowpower' }, async $ => {
     await setLowPower($, !isLowPower)
     return { text: isLowPower ? 'Impulse power: backdrop animations frozen.' : 'Warp power: backdrop animations running.' }
@@ -344,12 +397,16 @@ export const register: Register = (on, options) => {
       return next(e)
     }
     // A console rail fixed above the message box, with the power toggle at its end.
-    const { Box, Button, Svg } = $.ui.resolve(e)
+    const { Box, Button, Svg, Text } = $.ui.resolve(e)
     return (
       <Box flexDirection="row" alignItems="center">
         <Box flexGrow={1}>
-          <Svg source={BAND} alt="An orange console rail fading out to the right" height={BAND_HEIGHT} />
+          <Svg source={isRedAlert ? redAlert(BAND) : BAND} alt="A console rail fading out to the right" height={BAND_HEIGHT} />
         </Box>
+        <Button key="red-alert" plain dimColor={!isRedAlert} onPress={() => setRedAlert($, !isRedAlert)}>
+          {isRedAlert ? '▲ STAND DOWN' : '▲ RED ALERT'}
+        </Button>
+        <Text> </Text>
         <Button key="power" plain dimColor={!isLowPower} onPress={() => setLowPower($, !isLowPower)}>
           {isLowPower ? '◐ IMPULSE' : '● WARP'}
         </Button>
@@ -362,11 +419,12 @@ export const register: Register = (on, options) => {
       return next(e)
     }
     const { Svg } = $.ui.resolve(e)
-    const source = sceneAt(SCENE, await $.clock.now(), {
+    const scene = sceneAt(SCENE, await $.clock.now(), {
       clocks,
       onCall: isConfigured && !isOnCallOff ? onCallSvg(state) : undefined,
       isLowPower,
     })
+    const source = isRedAlert ? redAlertScene(scene) : scene
     return <Svg source={source} alt="Pitch-black console with flat pastel rails, world clocks, on-call status and a minute dial" isInteractive />
   })
 }
