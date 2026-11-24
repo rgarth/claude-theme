@@ -107,6 +107,7 @@ function railRight(y, h, items) { // flush to the right edge, pill cap on the ou
 
 const tx = X + V + 18, ty = Y + A + r + 16
 // Right column, top to bottom, with roomy gaps between each part.
+const COL_MID = -103 // centre of the right-hand column (-196 to -10)
 const CLOCK_LABEL = 150 // STARDATE heading; the mod fills in the clocks below it
 const ONCALL_LABEL = CLOCK_LABEL + 186 // ON CALL heading; the mod fills in on-call and escalations below it
 const SENSOR_LABEL = ONCALL_LABEL + 232, DIAL = SENSOR_LABEL + 82, CHART_BASE = DIAL + 48 + 44 + 124
@@ -139,7 +140,7 @@ text { font-family: 'Swiss 911 Ultra Compressed BT', 'Swiss911 UCm BT', 'Swiss 9
 @keyframes blink { 0%, 60% { opacity: 1; } 61%, 100% { opacity: 0.35; } }
 @keyframes grow { from { transform: scaleY(1); } to { transform: scaleY(0.45); } }
 /* one turn a minute: the dot is at the top on each new minute */
-.spin { animation: spin 60s linear calc(0s - var(--t) * 1s) infinite; transform-origin: -80px ${DIAL}px; }
+.spin { animation: spin 60s linear calc(0s - var(--t) * 1s) infinite; transform-origin: ${COL_MID}px ${DIAL}px; }
 /* the dial's dot beats once a second: solid, then a quick blip that lands back on each whole second */
 .blip { animation: blip 1s linear calc(0s - var(--t) * 1s) infinite; }
 @keyframes blip { 0%, 82% { opacity: 1; } 91% { opacity: 0.1; } 100% { opacity: 1; } }
@@ -176,8 +177,8 @@ ${railRight(Y + 28, 8, [[124, C.l], [58, C.pe]])}
 <text class="sub" x="-14" y="${ONCALL_LABEL}" text-anchor="end">ON CALL</text>
 <g transform="translate(0 ${ONCALL_LABEL})"><!-- oncall --></g>
 <text class="sub" x="-14" y="${SENSOR_LABEL}" text-anchor="end">SENSOR ARRAY</text>
-<g class="schem"><circle cx="-80" cy="${DIAL}" r="48"/><circle cx="-80" cy="${DIAL}" r="30"/><path d="M-136 ${DIAL}H-24M-80 ${DIAL - 56}V${DIAL + 56}"/></g>
-<g class="spin"><path class="schem" d="M-128 ${DIAL}A48 48 0 0 1 -80 ${DIAL - 48}" stroke="${C.o}"/><circle class="blip" cx="-80" cy="${DIAL - 48}" r="4" fill="${C.pe}"/></g>
+<g class="schem"><circle cx="${COL_MID}" cy="${DIAL}" r="48"/><circle cx="${COL_MID}" cy="${DIAL}" r="30"/><path d="M${COL_MID - 56} ${DIAL}H${COL_MID + 56}M${COL_MID} ${DIAL - 56}V${DIAL + 56}"/></g>
+<g class="spin"><path class="schem" d="M${COL_MID - 48} ${DIAL}A48 48 0 0 1 ${COL_MID} ${DIAL - 48}" stroke="${C.o}"/><circle class="blip" cx="${COL_MID}" cy="${DIAL - 48}" r="4" fill="${C.pe}"/></g>
 ${bigChart(-196, CHART_BASE, 9, 14, 6, 110)}
 </svg>
 <svg x="100%" y="100%" width="1" height="1" overflow="visible">
