@@ -2,7 +2,8 @@ import type { EngineInterface, Register, ThemeMessageRule, ThemeSetArgs } from '
 
 import { makeColors } from './make-colors.js'
 import { BAND, BAND_HEIGHT } from './band'
-import { sceneAt } from './clocks'
+import { DEFAULT_CLOCKS, MAX_CLOCKS, formatClocks, moveClock, parseClocks, sceneAt, timeIn } from './clocks'
+import type { Clock } from './clocks'
 import { fetchEscalations, fetchOnCall, onCallSvg } from './pagerduty'
 import type { PagerDutyConfig, PagerDutyState } from './pagerduty'
 import { SCENE } from './scene'
@@ -105,6 +106,40 @@ let isLowPower = false
 // ON CALL panel switched off with `/bridge-crew off`: hidden, and PagerDuty left alone.
 let isOnCallOff = false
 
+// The world clocks. Start from the `clocks` option; once edited in the Clocks
+// pane, the edited list is kept in the store and wins.
+let clocks: Clock[] = []
+let clockNotice = '' // the pane's last word: a bad zone, or a full list
+const CLOCKS_PANE = 'bridge-clocks'
+
+async function setClocks($: EngineInterface, next: Clock[], notice = ''): Promise<void> {
+  clocks = next
+  clockNotice = notice
+  await $.store.set('clocks', formatClocks(next))
+  $.ui.invalidate('ui.render')
+}
+
+async function addClock($: EngineInterface, text: string): Promise<void> {
+  const { clocks: found, problems } = parseClocks(text)
+  if (found.length === 0) {
+    clockNotice = problems[0] ?? 'Type a time zone such as Europe/London, or Label=Europe/London.'
+    $.ui.invalidate('ui.render')
+    return
+  }
+  const room = MAX_CLOCKS - clocks.length
+  if (room <= 0) {
+    clockNotice = `Only ${MAX_CLOCKS} clocks fit. Remove one first.`
+    $.ui.invalidate('ui.render')
+    return
+  }
+  await setClocks($, [...clocks, ...found.slice(0, room)], problems.join('; '))
+}
+
+async function openClocks($: EngineInterface): Promise<void> {
+  clockNotice = ''
+  await $.ui.open({ id: CLOCKS_PANE, title: 'Clocks', focus: true, closeOnEscape: true })
+}
+
 async function setLowPower($: EngineInterface, value: boolean): Promise<void> {
   isLowPower = value
   await $.store.set('isLowPower', value)
@@ -164,6 +199,8 @@ export const register: Register = (on, options) => {
     incidentScope: scope === 'all' || scope === 'assigned' ? scope : 'teams',
   }
   const isConfigured = Boolean(pd.primarySchedule || pd.secondarySchedule)
+  const fromOption = parseClocks(str('clocks', DEFAULT_CLOCKS))
+  const clockProblems = fromOption.problems
 
   on('session.start', async ($, e, next) => {
     const unpainted = problems.find(line => line.startsWith("Desktop won't paint"))
@@ -178,10 +215,16 @@ export const register: Register = (on, options) => {
       $.ui.log(String(error))
       set = await $.theme.set(BASE)
     }
+    if (clockProblems.length > 0) {
+      $.ui.toast(`bridge-theme clocks: ${clockProblems.join('; ')}`)
+    }
+
     // Say why only while nothing draws the look; clear any older notice.
     $.ui.status(set.isDrawn ? undefined : set.reason)
     isLowPower = (await $.store.get('isLowPower')) === true
     isOnCallOff = (await $.store.get('isOnCallOff')) === true
+    const edited = await $.store.get('clocks')
+    clocks = typeof edited === 'string' ? parseClocks(edited).clocks : fromOption.clocks
 
     // Redraw the backdrop on each new minute so the clocks stay current.
     const now = await $.clock.now()
@@ -194,6 +237,7 @@ export const register: Register = (on, options) => {
     // PagerDuty, through the user's own MCP server: on-call every 15 minutes,
     // open high-urgency incidents every 5, unless the panel is off.
     await $.command.register({ name: 'bridge-crew', description: 'Refresh the ON CALL panel; "/bridge-crew off" hides it and stops PagerDuty lookups, "/bridge-crew on" brings it back' })
+    await $.command.register({ name: 'star-date', description: 'Add, remove and reorder the world clocks' })
     await $.command.register({ name: 'lowpower', description: 'Switch the bridge backdrop between warp (animated) and impulse (frozen, low power)' })
     if (isConfigured) {
       if (!isOnCallOff) {
@@ -205,6 +249,50 @@ export const register: Register = (on, options) => {
     }
 
     return next(e)
+  })
+
+  on('command.run', { command: 'star-date' }, async $ => {
+    await openClocks($)
+    return { text: 'Clocks pane opened.' }
+  })
+
+  // The Clocks pane: each clock with buttons to move or remove it, a field to
+  // add one, and a reset to the option's list.
+  on('ui.render', { component: 'Pane', requestId: CLOCKS_PANE }, async ($, e) => {
+    const { Box, Button, Input, Text } = $.ui.resolve(e)
+    const now = await $.clock.now()
+    return (
+      <Box flexDirection="column" gap={1}>
+        <Box flexDirection="column">
+          {clocks.length === 0 && <Text dimColor>No clocks.</Text>}
+          {clocks.map((c, i) => (
+            <Box flexDirection="row" gap={1} alignItems="center">
+              <Text bold>{c.label}</Text>
+              <Text dimColor>
+                {c.zone} {timeIn(now, c.zone)}
+              </Text>
+              <Box flexGrow={1} />
+              <Button key={`up-${i}`} plain label="↑" onPress={() => setClocks($, moveClock(clocks, i, -1))} />
+              <Button key={`down-${i}`} plain label="↓" onPress={() => setClocks($, moveClock(clocks, i, 1))} />
+              <Button key={`remove-${i}`} plain label="✕" onPress={() => setClocks($, clocks.filter((_, k) => k !== i))} />
+            </Box>
+          ))}
+        </Box>
+        <Input
+          key="add"
+          label="Add"
+          placeholder="Tokyo=Asia/Tokyo, or Asia/Tokyo"
+          submitLabel="add"
+          autoFocus
+          onSubmit={value => addClock($, value)}
+        />
+        {clockNotice !== '' && <Text color="warning">{clockNotice}</Text>}
+        <Box flexDirection="row" gap={2}>
+          <Button key="reset" label="Reset to defaults" onPress={() => setClocks($, fromOption.clocks)} />
+          <Button key="done" variant="primary" label="Done" onPress={() => $.ui.close({ id: CLOCKS_PANE })} />
+        </Box>
+      </Box>
+    )
   })
 
   on('command.run', { command: 'lowpower' }, async $ => {
@@ -274,7 +362,11 @@ export const register: Register = (on, options) => {
       return next(e)
     }
     const { Svg } = $.ui.resolve(e)
-    const source = sceneAt(SCENE, await $.clock.now(), isConfigured && !isOnCallOff ? onCallSvg(state) : undefined, isLowPower)
+    const source = sceneAt(SCENE, await $.clock.now(), {
+      clocks,
+      onCall: isConfigured && !isOnCallOff ? onCallSvg(state) : undefined,
+      isLowPower,
+    })
     return <Svg source={source} alt="Pitch-black console with flat pastel rails, world clocks, on-call status and a minute dial" isInteractive />
   })
 }

@@ -1,49 +1,73 @@
 // World clocks for the backdrop's STARDATE block.
 //
-// Offsets are worked out here, with each place's daylight-saving rule, so the
-// clocks don't depend on time-zone data being present where the mod runs.
+// Which places to show is the `clocks` option: a comma-separated list of
+// IANA time zones, each optionally labelled, such as
+// "Sydney=Australia/Sydney, Europe/London, UTC". Local times come from the
+// engine's own time-zone data, daylight saving included.
 
-const HOUR = 3_600_000
+export type Clock = { label: string; zone: string }
 
-// The UTC moment of the nth Sunday (n = 1, 2...) of a month, at a given UTC hour.
-function nthSunday(year: number, month: number, n: number, utcHour: number): number {
-  const first = new Date(Date.UTC(year, month, 1))
-  const day = 1 + ((7 - first.getUTCDay()) % 7) + 7 * (n - 1)
-  return Date.UTC(year, month, day, utcHour)
+export const DEFAULT_CLOCKS = 'Sydney=Australia/Sydney, Bangalore=Asia/Kolkata, San Francisco=America/Los_Angeles, UTC=UTC'
+export const MAX_CLOCKS = 8
+const ROW = 26 // pixels between clock rows
+const DESIGNED_FOR = 4 // the column is laid out for four clocks; more or fewer shifts what's below
+
+const formats = new Map<string, Intl.DateTimeFormat>()
+function formatFor(zone: string): Intl.DateTimeFormat {
+  let f = formats.get(zone)
+  if (f === undefined) {
+    f = new Intl.DateTimeFormat('en-GB', { timeZone: zone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+    formats.set(zone, f)
+  }
+  return f
 }
 
-// Sydney: AEDT (+11) from the first Sunday of October, 2am local (16:00 UTC the
-// day before), until the first Sunday of April, 3am local (16:00 UTC the day before).
-function sydneyOffset(now: number): number {
-  const year = new Date(now).getUTCFullYear()
-  const endsThisYear = nthSunday(year, 3, 1, 16) - 24 * HOUR
-  const startsThisYear = nthSunday(year, 9, 1, 16) - 24 * HOUR
-  const isSummer = now < endsThisYear || now >= startsThisYear
-  return (isSummer ? 11 : 10) * HOUR
+// Reads the `clocks` option. Unknown zones are left out and named in `problems`.
+export function parseClocks(text: string): { clocks: Clock[]; problems: string[] } {
+  const clocks: Clock[] = []
+  const problems: string[] = []
+  for (const item of text.split(',').map(s => s.trim()).filter(Boolean)) {
+    const eq = item.indexOf('=')
+    const zone = (eq >= 0 ? item.slice(eq + 1) : item).trim()
+    const named = eq >= 0 ? item.slice(0, eq).trim() : ''
+    const label = (named || (zone.split('/').pop() ?? zone).replace(/_/g, ' ')).toUpperCase().slice(0, 14)
+    try {
+      formatFor(zone)
+    } catch {
+      problems.push(`unknown time zone "${zone}"`)
+      continue
+    }
+    clocks.push({ label, zone })
+  }
+  if (clocks.length > MAX_CLOCKS) {
+    problems.push(`only the first ${MAX_CLOCKS} clocks fit`)
+    clocks.length = MAX_CLOCKS
+  }
+  return { clocks, problems }
 }
 
-// San Francisco: PDT (-7) from the second Sunday of March, 2am local (10:00 UTC),
-// until the first Sunday of November, 2am local (09:00 UTC).
-function sanFranciscoOffset(now: number): number {
-  const year = new Date(now).getUTCFullYear()
-  const starts = nthSunday(year, 2, 2, 10)
-  const ends = nthSunday(year, 10, 1, 9)
-  return (now >= starts && now < ends ? -7 : -8) * HOUR
+// Back to the option's text form, for storing what the clocks pane edits.
+export function formatClocks(clocks: readonly Clock[]): string {
+  return clocks.map(c => `${c.label}=${c.zone}`).join(', ')
 }
 
-export const CITIES: readonly [string, (now: number) => number][] = [
-  ['SYDNEY', sydneyOffset],
-  ['BANGALORE', () => 5.5 * HOUR],
-  ['SAN FRANCISCO', sanFranciscoOffset],
-  ['UTC', () => 0],
-]
+// The list with clock `i` moved one place up (-1) or down (+1).
+export function moveClock(clocks: readonly Clock[], i: number, by: -1 | 1): Clock[] {
+  const j = i + by
+  if (i < 0 || j < 0 || i >= clocks.length || j >= clocks.length) return [...clocks]
+  const out = [...clocks]
+  ;[out[i], out[j]] = [out[j]!, out[i]!]
+  return out
+}
+
+// The time in a zone as HH:MM, 24-hour.
+export function timeIn(now: number, zone: string): string {
+  const parts = formatFor(zone).formatToParts(now)
+  const get = (type: string) => parts.find(p => p.type === type)?.value ?? '00'
+  return `${get('hour')}:${get('minute')}`
+}
 
 const two = (n: number) => String(n).padStart(2, '0')
-
-export function timeIn(now: number, offset: number): string {
-  const t = new Date(now + offset)
-  return `${two(t.getUTCHours())}:${two(t.getUTCMinutes())}`
-}
 
 // Today's date in UTC as YYYY.MM.DD.
 export function stardate(now: number): string {
@@ -51,31 +75,40 @@ export function stardate(now: number): string {
   return `${t.getUTCFullYear()}.${two(t.getUTCMonth() + 1)}.${two(t.getUTCDate())}`
 }
 
+const escape = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+
 // The SVG for the block under the STARDATE heading, right-aligned to the
-// column's edge (x = -14) with city names on the left (x = -196).
-export function clocksSvg(now: number): string {
+// column's edge (x = -14) with place names on the left (x = -196).
+export function clocksSvg(now: number, clocks: readonly Clock[]): string {
   let out = `<text class="date" x="-14" y="32">${stardate(now)}</text>`
-  CITIES.forEach(([name, offset], i) => {
-    const y = 66 + i * 26
-    out += `<text class="city" x="-196" y="${y}">${name}</text>`
-    out += `<text class="time" x="-14" y="${y}">${timeIn(now, offset(now))}</text>`
+  clocks.forEach(({ label, zone }, i) => {
+    const y = 66 + i * ROW
+    out += `<text class="city" x="-196" y="${y}">${escape(label)}</text>`
+    out += `<text class="time" x="-14" y="${y}">${timeIn(now, zone)}</text>`
   })
   return out
 }
 
+export type SceneOptions = {
+  clocks: readonly Clock[]
+  // The SVG for the ON CALL block, drawn by pagerduty.ts; undefined leaves
+  // the block out and closes the gap.
+  onCall?: string
+  // Freezes every animation where it stands, so nothing repaints between the
+  // once-a-minute redraws.
+  isLowPower?: boolean
+}
+
 // The scene at a given moment: clocks filled in, and every animation told the
 // time so a redraw carries on where the last one was instead of restarting.
-// `onCall` is the SVG for the ON CALL block, drawn by pagerduty.ts;
-// `onCall` undefined leaves the ON CALL block out and closes the gap.
-// `isLowPower` freezes every animation where it stands, so nothing repaints
-// between the once-a-minute redraws.
-export function sceneAt(scene: string, now: number, onCall?: string, isLowPower = false): string {
+export function sceneAt(scene: string, now: number, { clocks, onCall, isLowPower = false }: SceneOptions): string {
   // Seconds since the epoch, wrapped every 10 days: a whole number of minutes,
   // so the minute dial stays on the real second hand.
   const seconds = ((now / 1000) % 864_000).toFixed(2)
+  const shift = (clocks.length - DESIGNED_FOR) * ROW
   return scene
-    .replace('--t: 0;', `--t: ${seconds};`)
-    .replace('<!-- clocks -->', clocksSvg(now))
+    .replace('--t: 0; --shift: 0px;', `--t: ${seconds}; --shift: ${shift}px;`)
+    .replace('<!-- clocks -->', clocksSvg(now, clocks))
     .replace('<!-- oncall -->', onCall ?? '')
     .replace('<svg ', onCall === undefined ? '<svg class="no-oncall" ' : '<svg ')
     .replace('<style>', isLowPower ? '<style>* { animation-play-state: paused !important; }' : '<style>')

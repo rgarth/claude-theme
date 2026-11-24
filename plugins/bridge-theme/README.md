@@ -5,7 +5,24 @@ A sci-fi starship console theme for the Claude desktop and mobile apps. It's alw
 ## Commands
 
 - **`/lowpower`**, or the **WARP / IMPULSE** button above the message box, freezes the backdrop animations to save CPU. The clocks keep updating. The setting is remembered.
+- **`/star-date`** opens a pane for editing the world clocks.
 - **`/bridge-crew`** refreshes the PagerDuty panel. **`/bridge-crew off`** hides it and stops all PagerDuty lookups; **`/bridge-crew on`** brings it back.
+
+## Clocks
+
+The clocks default to Sydney, Bangalore, San Francisco and UTC. Type `/star-date` to add, remove and reorder them; the backdrop updates as you go and the list is remembered. To set the starting list instead, set `clocks` in `~/.claude/settings.json` to a comma-separated list of time zones, each optionally labelled:
+
+```json
+"pluginConfigs": {
+  "bridge-theme": {
+    "options": {
+      "clocks": "Home=Europe/London, America/New_York, Asia/Tokyo, UTC"
+    }
+  }
+}
+```
+
+Time zones are IANA names such as `Europe/London`. Without a label, the city part of the name is used. Up to 8 fit, and the rest of the column moves down to make room. Unknown zones are skipped, with a notice when the session starts.
 
 ## PagerDuty panel
 

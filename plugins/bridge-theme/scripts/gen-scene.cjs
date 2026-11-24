@@ -122,11 +122,13 @@ const midTop = top.end, midBottom = bot.end // px from top, px from bottom
 
 const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
 <style>
-svg { --t: 0; }
+svg { --t: 0; --shift: 0px; }
 .warp { transform-box: view-box; transform-origin: 800px 500px; opacity: 0; animation: warp ${ZOOM}s cubic-bezier(0.55, 0, 1, 1) infinite; }
 /* with the ON CALL block off, the sensor array and graph move up into its place */
 .no-oncall .oncall { display: none; }
-.no-oncall .lower { transform: translateY(-${SENSOR_LABEL - ONCALL_LABEL}px); }
+/* --shift moves everything under the clocks when there are more or fewer than four */
+.oncall, .lower { transform: translateY(var(--shift)); }
+.no-oncall .lower { transform: translateY(calc(var(--shift) - ${SENSOR_LABEL - ONCALL_LABEL}px)); }
 @keyframes warp { 0% { transform: scale(0.35); opacity: 0; } 15% { opacity: 0.75; } 80% { opacity: 0.75; } 100% { transform: scale(2.2); opacity: 0; } }
 text { font-family: 'Swiss 911 Ultra Compressed BT', 'Swiss911 UCm BT', 'Swiss 911 Ultra Compressed', 'DIN Condensed', 'Arial Narrow', sans-serif; font-stretch: condensed; font-size: 11px; letter-spacing: 1px; }
 .city { fill: ${C.l}; font-size: 16px; letter-spacing: 1px; }

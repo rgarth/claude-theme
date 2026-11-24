@@ -1,12 +1,18 @@
 {
   "name": "bridge-theme",
-  "version": "0.7.1",
-  "description": "Starship bridge console theme: pitch black, flat pastel elbows and rails, drifting star-field",
+  "version": "0.9.1",
+  "description": "A sci-fi starship console theme: pitch black, flat pastel frames, a star-field you fly through, world clocks",
   "author": {
     "name": "Rob Garth"
   },
   "license": "MIT",
   "userConfig": {
+    "clocks": {
+      "type": "string",
+      "title": "World clocks",
+      "description": "Comma-separated time zones, each optionally labelled, e.g. \"Sydney=Australia/Sydney, Europe/London, UTC\". Up to 8.",
+      "default": "Sydney=Australia/Sydney, Bangalore=Asia/Kolkata, San Francisco=America/Los_Angeles, UTC=UTC"
+    },
     "pagerdutyServer": {
       "type": "string",
       "title": "PagerDuty MCP server",
