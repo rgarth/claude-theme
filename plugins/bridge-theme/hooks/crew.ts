@@ -55,17 +55,24 @@ async function fetchInto($: EngineInterface, pd: PagerDutyConfig, part: Part): P
   else readings.escalations = { status: 'ok', value: await fetchEscalations(call, pd) }
 }
 
+// One line in the chat when PagerDuty stops answering, not one per poll. It
+// can show again only after a lookup has worked. /bridge-crew gives the details.
+let hasToldFailure = false
+
 async function read($: EngineInterface, pd: PagerDutyConfig, part: Part, retry = true, attempt = 0): Promise<void> {
   try {
     await fetchInto($, pd, part)
+    hasToldFailure = false
   } catch (error) {
     if (retry && isStillConnecting(error) && attempt < RETRIES) {
       $.clock.after(RETRY_EVERY, () => void read($, pd, part, true, attempt + 1))
       return
     }
-    const message = String(error).slice(0, 300)
-    readings[part] = { status: 'failed', message }
-    $.ui.log(`bridge-theme: ${WHAT[part]} lookup failed: ${message}`)
+    readings[part] = { status: 'failed', message: String(error).slice(0, 300) }
+    if (!hasToldFailure) {
+      hasToldFailure = true
+      $.ui.log('Unable to find crew roster.')
+    }
   }
   $.ui.invalidate('ui.render')
 }
